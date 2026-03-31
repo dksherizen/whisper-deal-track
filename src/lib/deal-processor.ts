@@ -81,6 +81,8 @@ export async function processParsedResult(
             });
           }
           actions.push(`${parsedDeal.name} — marked DEAD`);
+        } else {
+          actions.push(`⚠ Couldn't find a deal matching "${parsedDeal.name}" to mark as dead.`);
         }
         continue;
       }
