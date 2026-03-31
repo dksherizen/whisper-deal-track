@@ -200,7 +200,7 @@ export async function processParsedResult(
         console.log(`Attempting to insert deal "${parsedDeal.name}"`, insertPayload);
         const { data: newDeal, error } = await supabase
           .from('deals')
-          .insert(insertPayload)
+          .insert(insertPayload as any)
           .select()
           .single();
 
