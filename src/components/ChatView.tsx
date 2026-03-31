@@ -89,6 +89,9 @@ export default function ChatView({ messages, parsing, onSend, queuedTexts, queue
       </div>
 
       <div className="border-t border-border p-3">
+        {queueCount > 0 && (
+          <p className="text-xs text-muted-foreground mb-2">{queueCount} message{queueCount > 1 ? 's' : ''} queued...</p>
+        )}
         <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
