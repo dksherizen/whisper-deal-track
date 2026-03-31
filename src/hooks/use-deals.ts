@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Deal, Message } from "@/lib/types";
+import type { Deal, Message, Chat } from "@/lib/types";
 import type { ParseResult } from "@/lib/types";
 import { processParsedResult, buildStatusResponse, buildDealQueryResponse } from "@/lib/deal-processor";
 
@@ -13,7 +13,6 @@ export function useDeals(userId: string | null) {
     const { data } = await supabase
       .from('deals')
       .select('*')
-      .eq('user_id', userId)
       .order('updated_at', { ascending: false });
     setDeals((data as Deal[]) || []);
     setLoading(false);
@@ -26,38 +25,105 @@ export function useDeals(userId: string | null) {
   return { deals, loading, refetchDeals: fetchDeals };
 }
 
-export function useMessages(userId: string | null) {
+export function useChats(userId: string | null) {
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchChats = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
+    setChats((data as Chat[]) || []);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => {
+    fetchChats();
+  }, [fetchChats]);
+
+  const createChat = async (title = 'New Chat') => {
+    if (!userId) return null;
+    const { data, error } = await supabase
+      .from('chats')
+      .insert({ title, user_id: userId })
+      .select()
+      .single();
+    if (error || !data) return null;
+    setChats(prev => [data as Chat, ...prev]);
+    return data as Chat;
+  };
+
+  const deleteChat = async (chatId: string) => {
+    await supabase.from('chats').delete().eq('id', chatId);
+    setChats(prev => prev.filter(c => c.id !== chatId));
+  };
+
+  const updateChatTitle = async (chatId: string, title: string) => {
+    await supabase.from('chats').update({ title }).eq('id', chatId);
+    setChats(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
+  };
+
+  return { chats, loading, fetchChats, createChat, deleteChat, updateChatTitle };
+}
+
+export function useMessages(userId: string | null, chatId: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !chatId) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
     const load = async () => {
+      setLoading(true);
       const { data } = await supabase
         .from('messages')
         .select('*')
         .eq('user_id', userId)
+        .eq('chat_id', chatId)
         .order('created_at', { ascending: true });
       setMessages((data as Message[]) || []);
       setLoading(false);
     };
     load();
-  }, [userId]);
+  }, [userId, chatId]);
 
   const addMessage = async (role: 'user' | 'assistant', text: string, isError = false) => {
-    if (!userId) return;
+    if (!userId || !chatId) return;
     const { data } = await supabase
       .from('messages')
-      .insert({ role, text, is_error: isError, user_id: userId })
+      .insert({ role, text, is_error: isError, user_id: userId, chat_id: chatId })
       .select()
       .single();
     if (data) {
       setMessages(prev => [...prev, data as Message]);
     }
+    // Update chat title from first user message
+    if (role === 'user') {
+      const isFirst = messages.length === 0;
+      if (isFirst) {
+        const title = text.length > 50 ? text.slice(0, 47) + '...' : text;
+        await supabase.from('chats').update({ title, updated_at: new Date().toISOString() }).eq('id', chatId);
+      } else {
+        await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', chatId);
+      }
+    }
     return data as Message;
   };
 
   return { messages, loading, addMessage, setMessages };
+}
+
+function countPossibleDealNames(text: string): number {
+  // Heuristic: find sequences of 2+ capitalized words or all-caps words
+  const matches = text.match(/\b[A-Z][A-Z]+(?:\s+[A-Z][A-Z]+)*\b/g) || [];
+  const unique = new Set(matches.filter(m => m.length > 3));
+  return unique.size;
 }
 
 export function useDealChat(
@@ -123,6 +189,14 @@ export function useDealChat(
           if (result.summary) responseText += result.summary;
           if (result.question) responseText += '\n\n' + result.question;
           if (!responseText) responseText = 'Processed.';
+
+          // Heuristic: check if deals might have been missed
+          const possibleNames = countPossibleDealNames(text);
+          const returnedDeals = result.deals?.length || 0;
+          if (possibleNames > returnedDeals + 1 && possibleNames > 2) {
+            responseText += "\n\n⚠ I may have missed some deals in that dump. Try sending updates for specific deals separately if something's missing.";
+          }
+
           await add('assistant', responseText);
         } catch (saveErr: any) {
           console.error('DB save error:', saveErr);
