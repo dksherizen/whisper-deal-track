@@ -1,57 +1,90 @@
 
 
-# Message Queue System
+# Multi-Chat, Shared Workspace, and Parsing Improvements
 
-## Overview
-Allow the user to keep typing and sending messages while previous ones are still being parsed. Messages queue up and process sequentially, with the deals list refreshed between each so later messages can reference deals created by earlier ones.
+## 1. Database Changes
 
-## Architecture
+**New `chats` table:**
+- `id` (uuid, PK), `title` (text, default 'New Chat'), `created_at` (timestamptz), `updated_at` (timestamptz), `user_id` (uuid)
+- RLS: users see only their own chats (INSERT/SELECT/UPDATE/DELETE filtered by `auth.uid() = user_id`)
 
-The queue logic lives in `useDealChat`. ChatView becomes a "dumb" UI that never blocks input.
+**Alter `messages` table:**
+- Add `chat_id` (uuid, nullable initially for migration, then foreign key to `chats.id` with `ON DELETE CASCADE`)
 
-```text
-User types → onSend → addToQueue → [queue processes sequentially]
-                                        ↓
-                                   process msg 1 → refetchDeals
-                                        ↓
-                                   process msg 2 (with fresh deals) → refetchDeals
-                                        ↓
-                                   ...
+**Alter RLS on deals, timeline_entries, delegations, contacts:**
+- Change SELECT policies to allow ALL authenticated users to read (not just `user_id = auth.uid()`)
+- Keep INSERT policies requiring `user_id = auth.uid()` (tracks creator)
+- Keep UPDATE/DELETE restricted to owner
+
+## 2. Edge Function: `parse-deal-input`
+
+- Increase `max_tokens` from 1500 to 3000
+- Update system prompt: instruct model to list each deal on a separate line in the summary as `DEAL NAME — action taken (new / updated / marked dead)`, then blank line, then summary text, then question
+
+## 3. Client-Side Parsing Improvements
+
+**`deal-processor.ts`** — field mapping already exists and looks correct. No changes needed there.
+
+**`use-deals.ts`** — after processing parsed result, add a heuristic check: count unique ALLCAPS multi-word sequences in the original input text, compare against `result.deals?.length`. If input mentions more deal-like names than returned, append a warning to the assistant response: "I may have missed some deals in that dump. Try sending updates for specific deals separately if something's missing."
+
+## 4. Multi-Chat System
+
+**New types in `types.ts`:**
+- `Chat` interface: `id`, `title`, `created_at`, `updated_at`, `user_id`
+- Add `chat_id` to `Message` interface
+
+**New hook: `useChats(userId)`**
+- Fetch all chats for user, ordered by `updated_at` desc
+- `createChat()` — inserts new chat, returns it
+- `deleteChat(chatId)` — deletes chat (messages cascade)
+- `updateChatTitle(chatId, title)`
+
+**Update `useMessages`:**
+- Accept `chatId` parameter, filter messages by `chat_id`
+- `addMessage` includes `chat_id`
+
+**Update `useDealChat`:**
+- Works within current chat context
+- Deals context always pulls from shared deals table (already does this)
+
+## 5. UI Changes
+
+**`ChatView.tsx`** — add a left sidebar/panel showing chat list:
+- List of chats with title and relative timestamp
+- "New Chat" button at top
+- Click chat to switch
+- Delete button per chat with confirmation dialog
+- Active chat highlighted
+
+**`Header.tsx`:**
+- Remove the Reset button (the nuclear option)
+- Add a "Delete All Deals" option inside a settings dropdown (with double confirmation)
+
+**`Index.tsx`:**
+- Manage `currentChatId` state
+- On first load, select most recent chat or auto-create one
+- Pass chat switching handlers to ChatView
+- Wire up `useMessages` with `chatId`
+
+## 6. Shared Data RLS Changes
+
+Deals, timeline_entries, delegations, contacts SELECT policies become:
+```sql
+-- Allow all authenticated users to view
+USING (auth.uid() IS NOT NULL)
 ```
+INSERT stays as `auth.uid() = user_id`. UPDATE/DELETE stay owner-only.
 
-## Changes
+## File Change Summary
 
-### 1. `src/hooks/use-deals.ts` — `useDealChat`
-- Replace single `parsing` boolean with `queue: string[]` array and `processing: boolean` state
-- Expose `queueCount` (number of queued + currently processing messages)
-- `sendMessage` now just pushes text onto the queue (never blocks)
-- Add a `useEffect` that watches the queue: when `processing` is false and queue is non-empty, shift the first item off and process it
-- After each message processes, call `refetchDeals()` so the next message gets fresh deal names
-- Re-fetch deals at the start of each queued message processing (read latest `deals` from a ref to avoid stale closure)
-- Keep `parsing` as a derived value (`processing || queue.length > 0`) for backward compat with Header if needed
-
-### 2. `src/components/ChatView.tsx`
-- Add `queuedTexts: string[]` and `queueCount: number` to props
-- Remove `parsing` gate from `handleSend` — send button always works when input is non-empty
-- Show queued user messages (not yet in DB) as user bubbles with a small "queued" badge
-- Keep the "Parsing..." indicator when `processing` is true
-- Show queue counter above input: "2 messages queued..." when `queueCount > 0`
-- Button `disabled` only when input is empty (never disabled for parsing)
-
-### 3. `src/pages/Index.tsx`
-- Pass new props (`queuedTexts`, `queueCount`) from `useDealChat` down to `ChatView`
-
-## Technical Details
-
-**Queue state in `useDealChat`:**
-```
-queue: string[]           — pending message texts
-processing: boolean       — true while one message is being parsed
-queuedTexts: string[]     — exposed for UI (includes currently processing)
-queueCount: number        — queue.length (excluding the one currently processing)
-```
-
-**Fresh deals per message:** Use a `useRef` for deals so the processing loop always reads the latest value after `refetchDeals()` completes, avoiding stale closures.
-
-**Queued bubble rendering:** ChatView renders `queuedTexts` as user-styled bubbles with an opacity-60 "queued" label beneath. These disappear as messages get persisted to DB and appear in the real `messages` array.
+| File | Change |
+|------|--------|
+| Migration SQL | New `chats` table, alter `messages`, update RLS policies |
+| `src/lib/types.ts` | Add `Chat` type, add `chat_id` to `Message` |
+| `src/hooks/use-deals.ts` | Add `useChats` hook, update `useMessages` for chat_id, add deal-count mismatch warning |
+| `src/components/ChatView.tsx` | Add chat sidebar with list, new chat, delete chat |
+| `src/components/Header.tsx` | Remove Reset button, add settings dropdown with "Delete All Deals" |
+| `src/pages/Index.tsx` | Wire up multi-chat state management |
+| `supabase/functions/parse-deal-input/index.ts` | Increase max_tokens to 3000, update summary format in system prompt |
+| `src/lib/deal-processor.ts` | No changes needed (field mapping already correct) |
 
