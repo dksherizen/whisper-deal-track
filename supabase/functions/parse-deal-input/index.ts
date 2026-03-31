@@ -92,10 +92,10 @@ serve(async (req) => {
   try {
     const { message, existingDeals, recentMessages } = await req.json();
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
+        JSON.stringify({ error: "OPENROUTER_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -115,24 +115,25 @@ serve(async (req) => {
     }
     conversationMessages.push({ role: "user", content: message });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "anthropic/claude-opus-4",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT + dealsContext },
+          ...conversationMessages,
+        ],
         max_tokens: 2000,
-        system: SYSTEM_PROMPT + dealsContext,
-        messages: conversationMessages,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Anthropic API error:", response.status, errorText);
+      console.error("OpenRouter API error:", response.status, errorText);
       return new Response(
         JSON.stringify({ error: `AI API error: ${response.status}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -140,7 +141,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const text = data.content.map((c: any) => c.text || "").join("");
+    const text = data.choices?.[0]?.message?.content || "";
     
     let parsed;
     try {
