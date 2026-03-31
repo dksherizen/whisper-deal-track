@@ -16,7 +16,7 @@ export default function Index() {
   const { session, loading: authLoading, signIn, signUp, signOut, userId } = useAuth();
   const { deals, loading: dealsLoading, refetchDeals } = useDeals(userId);
   const { messages, loading: msgsLoading, addMessage } = useMessages(userId);
-  const { sendMessage, parsing } = useDealChat(userId, deals, refetchDeals);
+  const { enqueue, parsing, queuedTexts, queueCount } = useDealChat(userId, deals, refetchDeals, addMessage, messages);
 
   const [view, setView] = useState<ViewMode>('chat');
   const [search, setSearch] = useState("");
@@ -48,7 +48,7 @@ export default function Index() {
   };
 
   const handleSend = (text: string) => {
-    sendMessage(text, addMessage, messages);
+    enqueue(text);
   };
 
   if (selectedDeal) {
@@ -87,7 +87,7 @@ export default function Index() {
       />
       <div className="flex-1 overflow-hidden">
         {view === 'chat' && (
-          <ChatView messages={messages} parsing={parsing} onSend={handleSend} />
+          <ChatView messages={messages} parsing={parsing} onSend={handleSend} queuedTexts={queuedTexts} queueCount={queueCount} />
         )}
         {view === 'board' && (
           <BoardView deals={deals} search={search} onSelectDeal={setSelectedDeal} />

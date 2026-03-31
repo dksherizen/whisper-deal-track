@@ -7,9 +7,11 @@ interface ChatViewProps {
   messages: Message[];
   parsing: boolean;
   onSend: (text: string) => void;
+  queuedTexts: string[];
+  queueCount: number;
 }
 
-export default function ChatView({ messages, parsing, onSend }: ChatViewProps) {
+export default function ChatView({ messages, parsing, onSend, queuedTexts, queueCount }: ChatViewProps) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -20,7 +22,7 @@ export default function ChatView({ messages, parsing, onSend }: ChatViewProps) {
 
   const handleSend = () => {
     const text = input.trim();
-    if (!text || parsing) return;
+    if (!text) return;
     setInput("");
     onSend(text);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -65,6 +67,16 @@ export default function ChatView({ messages, parsing, onSend }: ChatViewProps) {
             </div>
           </div>
         ))}
+        {queuedTexts.map((qt, i) => (
+          <div key={`queued-${i}`} className="flex justify-end">
+            <div className="max-w-[75%]">
+              <div className="bg-primary/60 text-primary-foreground px-3 py-2 rounded-lg text-sm whitespace-pre-wrap">
+                {qt}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5 text-right">queued</p>
+            </div>
+          </div>
+        ))}
         {parsing && (
           <div className="flex justify-start">
             <div className="bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2 text-sm text-muted-foreground">
@@ -77,6 +89,9 @@ export default function ChatView({ messages, parsing, onSend }: ChatViewProps) {
       </div>
 
       <div className="border-t border-border p-3">
+        {queueCount > 0 && (
+          <p className="text-xs text-muted-foreground mb-2">{queueCount} message{queueCount > 1 ? 's' : ''} queued...</p>
+        )}
         <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -89,7 +104,7 @@ export default function ChatView({ messages, parsing, onSend }: ChatViewProps) {
           />
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || parsing}
+            disabled={!input.trim()}
             size="icon"
             className="h-9 w-9 shrink-0"
           >
