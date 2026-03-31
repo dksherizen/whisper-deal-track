@@ -16,7 +16,7 @@ export default function Index() {
   const { session, loading: authLoading, signIn, signUp, signOut, userId } = useAuth();
   const { deals, loading: dealsLoading, refetchDeals } = useDeals(userId);
   const { messages, loading: msgsLoading, addMessage } = useMessages(userId);
-  const { sendMessage, parsing } = useDealChat(userId, deals, refetchDeals);
+  const { enqueue, parsing, queuedTexts, queueCount } = useDealChat(userId, deals, refetchDeals, addMessage, messages);
 
   const [view, setView] = useState<ViewMode>('chat');
   const [search, setSearch] = useState("");
