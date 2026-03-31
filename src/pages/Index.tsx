@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useDeals, useMessages, useDealChat, useChats } from "@/hooks/use-deals";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,13 +27,19 @@ export default function Index() {
   const [creatingDeal, setCreatingDeal] = useState<string | null>(null); // null = not creating, string = default stage
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
 
+  const creatingChatRef = useRef(false);
+
   useEffect(() => {
     if (!userId || chatsLoading) return;
     if (chats.length > 0 && !currentChatId) {
       setCurrentChatId(chats[0].id);
-    } else if (chats.length === 0 && !currentChatId) {
+    } else if (chats.length === 0 && !currentChatId && !creatingChatRef.current) {
+      creatingChatRef.current = true;
       createChat('New Chat').then(chat => {
         if (chat) setCurrentChatId(chat.id);
+        creatingChatRef.current = false;
+      }).catch(() => {
+        creatingChatRef.current = false;
       });
     }
   }, [userId, chats, chatsLoading, currentChatId]);

@@ -51,7 +51,11 @@ export function useChats(userId: string | null) {
       .insert({ title, user_id: userId })
       .select()
       .single();
-    if (error || !data) return null;
+    if (error) {
+      console.error('Failed to create chat:', error);
+      return null;
+    }
+    if (!data) return null;
     setChats(prev => [data as Chat, ...prev]);
     return data as Chat;
   };
