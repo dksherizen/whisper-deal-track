@@ -60,86 +60,98 @@ export function useMessages(userId: string | null) {
   return { messages, loading, addMessage, setMessages };
 }
 
-export function useDealChat(userId: string | null, deals: Deal[], refetchDeals: () => Promise<void>) {
-  const [parsing, setParsing] = useState(false);
+export function useDealChat(
+  userId: string | null,
+  deals: Deal[],
+  refetchDeals: () => Promise<void>,
+  addMessage: (role: 'user' | 'assistant', text: string, isError?: boolean) => Promise<Message | undefined>,
+  messages: Message[]
+) {
+  const [queue, setQueue] = useState<string[]>([]);
+  const [processing, setProcessing] = useState(false);
+  const dealsRef = useRef(deals);
+  const messagesRef = useRef(messages);
+  const addMessageRef = useRef(addMessage);
+  const refetchRef = useRef(refetchDeals);
 
-  const sendMessage = async (
-    text: string,
-    addMessage: (role: 'user' | 'assistant', text: string, isError?: boolean) => Promise<Message | undefined>,
-    recentMessages: Message[]
-  ) => {
-    if (!userId) return;
+  useEffect(() => { dealsRef.current = deals; }, [deals]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { addMessageRef.current = addMessage; }, [addMessage]);
+  useEffect(() => { refetchRef.current = refetchDeals; }, [refetchDeals]);
 
-    await addMessage('user', text);
-    setParsing(true);
+  const processOne = async (text: string) => {
+    const add = addMessageRef.current;
+    await add('user', text);
 
     try {
-      const existingDeals = deals.map(d => ({
-        name: d.name,
-        stage: d.stage,
-        broker: d.broker,
-        key_contact: d.key_contact,
-        aliases: d.aliases,
+      const currentDeals = dealsRef.current;
+      const existingDeals = currentDeals.map(d => ({
+        name: d.name, stage: d.stage, broker: d.broker,
+        key_contact: d.key_contact, aliases: d.aliases,
       }));
-
-      const last5 = recentMessages.slice(-5).map(m => ({ role: m.role, text: m.text }));
+      const last5 = messagesRef.current.slice(-5).map(m => ({ role: m.role, text: m.text }));
 
       const { data, error } = await supabase.functions.invoke('parse-deal-input', {
         body: { message: text, existingDeals, recentMessages: last5 },
       });
-
       if (error) throw error;
 
       const result = data as ParseResult;
 
       if (result.command === 'status') {
-        const statusText = buildStatusResponse(deals);
-        await addMessage('assistant', statusText);
+        const statusText = buildStatusResponse(currentDeals);
+        await add('assistant', statusText);
       } else if (result.command === 'query' && result.dealName) {
         const dealName = result.dealName.toUpperCase();
-        const deal = deals.find(d =>
+        const deal = currentDeals.find(d =>
           d.name.toUpperCase() === dealName ||
           d.aliases?.toUpperCase().includes(dealName) ||
           dealName.includes(d.name.toUpperCase())
         );
-
         if (deal) {
-          const { data: timeline } = await supabase
-            .from('timeline_entries')
-            .select('*')
-            .eq('deal_id', deal.id)
-            .order('date', { ascending: false })
-            .limit(10);
-          const { data: delegations } = await supabase
-            .from('delegations')
-            .select('*')
-            .eq('deal_id', deal.id)
-            .order('date', { ascending: false });
-
-          const queryText = buildDealQueryResponse(deal, timeline || [], delegations || []);
-          await addMessage('assistant', queryText);
+          const { data: timeline } = await supabase.from('timeline_entries').select('*').eq('deal_id', deal.id).order('date', { ascending: false }).limit(10);
+          const { data: delegations } = await supabase.from('delegations').select('*').eq('deal_id', deal.id).order('date', { ascending: false });
+          await add('assistant', buildDealQueryResponse(deal, timeline || [], delegations || []));
         } else {
-          await addMessage('assistant', `No deal found matching "${result.dealName}".`);
+          await add('assistant', `No deal found matching "${result.dealName}".`);
         }
       } else {
-        // Process deals/contacts
-        await processParsedResult(result, deals, userId);
-        await refetchDeals();
-
+        await processParsedResult(result, currentDeals, userId!);
+        await refetchRef.current();
         let responseText = '';
         if (result.summary) responseText += result.summary;
         if (result.question) responseText += '\n\n' + result.question;
         if (!responseText) responseText = 'Processed.';
-
-        await addMessage('assistant', responseText);
+        await add('assistant', responseText);
       }
     } catch (err: any) {
       console.error('Chat error:', err);
-      await addMessage('assistant', `Error: ${err.message || 'Failed to process message'}`, true);
-    } finally {
-      setParsing(false);
+      await add('assistant', `Error: ${err.message || 'Failed to process message'}`, true);
     }
   };
 
-  return { sendMessage, parsing };
+  useEffect(() => {
+    if (processing || queue.length === 0) return;
+
+    const run = async () => {
+      setProcessing(true);
+      const [next, ...rest] = queue;
+      setQueue(rest);
+      await processOne(next);
+      await refetchRef.current();
+      setProcessing(false);
+    };
+    run();
+  }, [queue, processing]);
+
+  const enqueue = (text: string) => {
+    setQueue(prev => [...prev, text]);
+  };
+
+  return {
+    enqueue,
+    parsing: processing,
+    queuedTexts: queue,
+    queueCount: queue.length,
+  };
 }
