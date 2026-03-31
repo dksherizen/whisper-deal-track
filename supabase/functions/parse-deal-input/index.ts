@@ -127,7 +127,7 @@ serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT + dealsContext },
           ...conversationMessages,
         ],
-        max_tokens: 1500,
+        max_tokens: 3000,
       }),
     });
 
