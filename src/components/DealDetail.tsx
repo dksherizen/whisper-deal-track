@@ -89,7 +89,7 @@ const FIELD_GROUPS = [
   },
 ];
 
-export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) {
+export default function DealDetail({ deal, onBack, onUpdate, onChatAction }: DealDetailProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, any>>({});
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
