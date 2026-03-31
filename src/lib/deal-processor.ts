@@ -81,11 +81,14 @@ export async function processParsedResult(
             });
           }
           actions.push(`${parsedDeal.name} — marked DEAD`);
+        } else {
+          actions.push(`⚠ Couldn't find a deal matching "${parsedDeal.name}" to mark as dead.`);
         }
         continue;
       }
 
-      if (parsedDeal.action === 'update' && existingDeal) {
+      if (existingDeal) {
+        // Update existing deal
         const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
         if (Object.keys(fields).length > 0) {
           await supabase.from('deals').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', existingDeal.id);
