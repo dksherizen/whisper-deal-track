@@ -13,6 +13,16 @@ export default {
       },
     },
     extend: {
+      fontSize: {
+        '2xs': '10px',
+        'xs': '11px',
+        'sm': '12px',
+        'base': '13px',
+        'lg': '14px',
+        'xl': '16px',
+        '2xl': '18px',
+        '3xl': '20px',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +57,25 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        stage: {
+          identified: "hsl(var(--stage-identified))",
+          "initial-review": "hsl(var(--stage-initial-review))",
+          engaged: "hsl(var(--stage-engaged))",
+          "due-diligence": "hsl(var(--stage-due-diligence))",
+          "hot-loi": "hsl(var(--stage-hot-loi))",
+          "legal-closing": "hsl(var(--stage-legal-closing))",
+          completed: "hsl(var(--stage-completed))",
+          "on-hold": "hsl(var(--stage-on-hold))",
+          dead: "hsl(var(--stage-dead))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -65,20 +94,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
