@@ -1,25 +1,15 @@
 import { useMemo } from "react";
 import type { Deal } from "@/lib/types";
 import { formatCurrency } from "@/lib/constants";
-import { Search, Settings, Trash2 } from "lucide-react";
+import { Search, Settings, Trash2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 type ViewMode = 'chat' | 'board' | 'list';
@@ -32,9 +22,10 @@ interface HeaderProps {
   setSearch: (s: string) => void;
   onDeleteAllDeals: () => void;
   onSignOut: () => void;
+  onNewDeal?: () => void;
 }
 
-export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut }: HeaderProps) {
+export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut, onNewDeal }: HeaderProps) {
   const stats = useMemo(() => {
     const active = deals.filter(d => !['completed', 'on_hold', 'dead'].includes(d.stage));
     const totalBeds = active.reduce((sum, d) => sum + (d.beds || 0), 0);
@@ -65,6 +56,12 @@ export default function Header({ deals, view, setView, search, setSearch, onDele
       </div>
 
       <div className="flex-1" />
+
+      {onNewDeal && (
+        <Button variant="outline" size="sm" onClick={onNewDeal} className="h-7 text-xs gap-1">
+          <Plus className="h-3 w-3" /> New Deal
+        </Button>
+      )}
 
       <div className="flex items-center bg-secondary rounded-md p-0.5 gap-0.5">
         {(['chat', 'board', 'list'] as const).map(v => (

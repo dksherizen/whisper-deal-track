@@ -1,65 +1,134 @@
 import { useMemo, useState } from "react";
 import type { Deal } from "@/lib/types";
-import { STAGES, INACTIVE_STAGES, getStageColor, formatCurrency, daysSinceUpdate } from "@/lib/constants";
+import { STAGES, INACTIVE_STAGES, ALL_STAGES, getStageColor, getStageLabel, formatCurrency, daysSinceUpdate } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BoardViewProps {
   deals: Deal[];
   search: string;
   onSelectDeal: (deal: Deal) => void;
+  onEditDeal?: (deal: Deal) => void;
+  onNewDeal?: (stage?: string) => void;
+  onRefetch?: () => void;
 }
 
 const ALWAYS_SHOW = ['identified', 'engaged'];
 
 function stageColorVar(stageKey: string): string {
   const color = getStageColor(stageKey);
-  // color is like "stage-identified" → CSS var is "--stage-identified"
   return `hsl(var(--${color}))`;
 }
 
-function DealCard({ deal, onClick }: { deal: Deal; onClick: () => void }) {
+function DealCard({ deal, onClick, onEdit, onStageChange, onDelete }: {
+  deal: Deal;
+  onClick: () => void;
+  onEdit?: () => void;
+  onStageChange?: (stage: string) => void;
+  onDelete?: () => void;
+}) {
   const stale = daysSinceUpdate(deal.updated_at);
+  const [showDelete, setShowDelete] = useState(false);
 
   return (
     <div
-      onClick={onClick}
-      className={`bg-card rounded-md p-2.5 cursor-pointer hover:border-primary/30 transition-colors border-l-[3px] ${
+      className={`group relative bg-card rounded-md p-2.5 cursor-pointer hover:border-primary/30 transition-colors border-l-[3px] ${
         stale >= 14 ? 'border border-warning/30' : 'border border-border'
       }`}
       style={{ borderLeftColor: stageColorVar(deal.stage) }}
     >
-      <div className="font-semibold text-sm text-foreground truncate">{deal.name}</div>
-      {deal.region && (
-        <div className="text-2xs text-muted-foreground mt-0.5">{deal.region}{deal.country ? `, ${deal.country}` : ''}</div>
-      )}
-      <div className="flex flex-wrap gap-1 mt-1.5">
-        {deal.beds && (
-          <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{deal.beds} beds</span>
+      {/* Card actions — top right */}
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onEdit && (
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(); }}
+            className="h-5 w-5 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            title="Edit deal"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
         )}
-        {deal.asking_price && (
-          <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{formatCurrency(deal.asking_price, deal.currency || 'GBP')}</span>
-        )}
-        {deal.tenure && (
-          <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{deal.tenure}</span>
+        {onDelete && (
+          <AlertDialog open={showDelete} onOpenChange={setShowDelete}>
+            <AlertDialogTrigger asChild>
+              <button
+                onClick={e => { e.stopPropagation(); setShowDelete(true); }}
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-destructive"
+                title="Delete deal"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-card border-border" onClick={e => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete {deal.name}?</AlertDialogTitle>
+                <AlertDialogDescription>This will permanently delete this deal and all related data.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { setShowDelete(false); onDelete(); }} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
-      {deal.next_step && (
-        <div className="text-2xs text-muted-foreground mt-1.5 truncate">→ {deal.next_step}</div>
-      )}
-      <div className="flex gap-2 mt-1.5">
-        {stale >= 14 && (
-          <span className="text-2xs text-warning">⚠ {stale}d stale</span>
+
+      <div onClick={onClick}>
+        <div className="font-semibold text-sm text-foreground truncate pr-12">{deal.name}</div>
+        {deal.region && (
+          <div className="text-2xs text-muted-foreground mt-0.5">{deal.region}{deal.country ? `, ${deal.country}` : ''}</div>
         )}
-        {deal.risks && (
-          <span className="text-2xs text-destructive">⚠ flagged</span>
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {deal.beds && (
+            <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{deal.beds} beds</span>
+          )}
+          {deal.asking_price && (
+            <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{formatCurrency(deal.asking_price, deal.currency || 'GBP')}</span>
+          )}
+          {deal.tenure && (
+            <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{deal.tenure}</span>
+          )}
+        </div>
+        {deal.next_step && (
+          <div className="text-2xs text-muted-foreground mt-1.5 truncate">→ {deal.next_step}</div>
         )}
+        <div className="flex gap-2 mt-1.5">
+          {stale >= 14 && (
+            <span className="text-2xs text-warning">⚠ {stale}d stale</span>
+          )}
+          {deal.risks && (
+            <span className="text-2xs text-destructive">⚠ flagged</span>
+          )}
+        </div>
       </div>
+
+      {/* Inline stage change */}
+      {onStageChange && (
+        <div className="mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+          <Select value={deal.stage} onValueChange={onStageChange}>
+            <SelectTrigger className="h-5 text-[10px] bg-secondary/50 border-0 px-1.5 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ALL_STAGES.map(s => (
+                <SelectItem key={s.key} value={s.key} className="text-xs">{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 }
 
-export default function BoardView({ deals, search, onSelectDeal }: BoardViewProps) {
+export default function BoardView({ deals, search, onSelectDeal, onEditDeal, onNewDeal, onRefetch }: BoardViewProps) {
   const [showInactive, setShowInactive] = useState(false);
 
   const filtered = useMemo(() => {
@@ -72,16 +141,24 @@ export default function BoardView({ deals, search, onSelectDeal }: BoardViewProp
     );
   }, [deals, search]);
 
-  // Active deals (not dead/completed/on_hold)
   const inactiveKeys = INACTIVE_STAGES.map(s => s.key as string);
   const activeDeals = filtered.filter(d => !inactiveKeys.includes(d.stage));
   const inactiveDeals = filtered.filter(d => inactiveKeys.includes(d.stage));
 
-  // Only show columns that have deals OR are in ALWAYS_SHOW
   const visibleStages = STAGES.filter(stage => {
     if (ALWAYS_SHOW.includes(stage.key)) return true;
     return activeDeals.some(d => d.stage === stage.key);
   });
+
+  const handleStageChange = async (dealId: string, newStage: string) => {
+    await supabase.from('deals').update({ stage: newStage, updated_at: new Date().toISOString() }).eq('id', dealId);
+    onRefetch?.();
+  };
+
+  const handleDelete = async (dealId: string) => {
+    await supabase.from('deals').delete().eq('id', dealId);
+    onRefetch?.();
+  };
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -100,16 +177,30 @@ export default function BoardView({ deals, search, onSelectDeal }: BoardViewProp
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1.5">
                   {stageDeals.map(deal => (
-                    <DealCard key={deal.id} deal={deal} onClick={() => onSelectDeal(deal)} />
+                    <DealCard
+                      key={deal.id}
+                      deal={deal}
+                      onClick={() => onSelectDeal(deal)}
+                      onEdit={onEditDeal ? () => onEditDeal(deal) : undefined}
+                      onStageChange={(s) => handleStageChange(deal.id, s)}
+                      onDelete={() => handleDelete(deal.id)}
+                    />
                   ))}
                 </div>
+                {onNewDeal && (
+                  <button
+                    onClick={() => onNewDeal(stage.key)}
+                    className="flex items-center justify-center gap-1 mt-1.5 py-1.5 text-2xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> Add
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Inactive section — collapsed by default */}
       {inactiveDeals.length > 0 && (
         <div className="border-t border-border p-3">
           <button
