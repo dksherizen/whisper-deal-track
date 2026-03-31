@@ -67,6 +67,16 @@ export default function ChatView({ messages, parsing, onSend, queuedTexts, queue
             </div>
           </div>
         ))}
+        {queuedTexts.map((qt, i) => (
+          <div key={`queued-${i}`} className="flex justify-end">
+            <div className="max-w-[75%]">
+              <div className="bg-primary/60 text-primary-foreground px-3 py-2 rounded-lg text-sm whitespace-pre-wrap">
+                {qt}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5 text-right">queued</p>
+            </div>
+          </div>
+        ))}
         {parsing && (
           <div className="flex justify-start">
             <div className="bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2 text-sm text-muted-foreground">
