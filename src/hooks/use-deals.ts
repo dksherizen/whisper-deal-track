@@ -89,7 +89,7 @@ export function useDealChat(
         name: d.name, stage: d.stage, broker: d.broker,
         key_contact: d.key_contact, aliases: d.aliases,
       }));
-      const last5 = messagesRef.current.slice(-5).map(m => ({ role: m.role, text: m.text }));
+      const recent = messagesRef.current.filter(m => !m.is_error).slice(-6).map(m => ({ role: m.role, text: m.text }));
 
       const { data, error } = await supabase.functions.invoke('parse-deal-input', {
         body: { message: text, existingDeals, recentMessages: last5 },
