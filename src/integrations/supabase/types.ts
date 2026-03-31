@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      chats: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           added_at: string
@@ -207,6 +231,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          chat_id: string | null
           created_at: string
           id: string
           is_error: boolean
@@ -215,6 +240,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat_id?: string | null
           created_at?: string
           id?: string
           is_error?: boolean
@@ -223,6 +249,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chat_id?: string | null
           created_at?: string
           id?: string
           is_error?: boolean
@@ -230,7 +257,15 @@ export type Database = {
           text?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       timeline_entries: {
         Row: {
