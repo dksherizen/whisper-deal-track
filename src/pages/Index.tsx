@@ -65,6 +65,27 @@ export default function Index() {
     if (chat) setCurrentChatId(chat.id);
   };
 
+  const handleInsertTestDeal = async () => {
+    if (!userId) return;
+
+    const payload = {
+      name: `TEST ${new Date().toLocaleTimeString()}`,
+      stage: 'identified',
+      user_id: userId,
+    };
+
+    console.log('Attempting minimum test deal insert:', payload);
+    const { data, error } = await supabase.from('deals').insert(payload).select().single();
+
+    if (error) {
+      console.error('Minimum test deal insert failed:', error);
+      return;
+    }
+
+    console.log('Minimum test deal insert succeeded:', data);
+    await refetchDeals();
+  };
+
   const handleDeleteChat = async (chatId: string) => {
     await deleteChat(chatId);
     if (currentChatId === chatId) {
@@ -120,6 +141,7 @@ export default function Index() {
           search={search} setSearch={setSearch}
           onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
           onNewDeal={() => handleNewDeal()}
+          onInsertTestDeal={handleInsertTestDeal}
         />
         <div className="flex-1 overflow-hidden">
           <DealDetail
@@ -148,6 +170,7 @@ export default function Index() {
           search={search} setSearch={setSearch}
           onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
           onNewDeal={() => handleNewDeal()}
+          onInsertTestDeal={handleInsertTestDeal}
         />
         <div className="flex-1 overflow-hidden">
           <DealDetail
@@ -171,6 +194,7 @@ export default function Index() {
           search={search} setSearch={setSearch}
           onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
           onNewDeal={() => handleNewDeal()}
+          onInsertTestDeal={handleInsertTestDeal}
         />
         <div className="flex-1 overflow-hidden">
           <DealDetail
@@ -191,6 +215,7 @@ export default function Index() {
         search={search} setSearch={setSearch}
         onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
         onNewDeal={() => handleNewDeal()}
+        onInsertTestDeal={handleInsertTestDeal}
       />
       <div className="flex-1 overflow-hidden">
         {view === 'chat' && (
