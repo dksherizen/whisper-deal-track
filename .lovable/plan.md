@@ -1,40 +1,33 @@
 
 
-# Fix: Deals not saving to database
+# Fix: App not loading (preview timeout)
 
-## Root Cause Analysis
+## Root Cause
 
-The code in `deal-processor.ts` already has camelCase→snake_case field mapping and processes deals individually. However, it has these problems:
+The code is syntactically correct with no build errors. The "took too long to respond" is most likely caused by a **render loop** in `Index.tsx`:
 
-1. **No error checking on updates** (lines 93-97) — if a Supabase update fails, it's silently ignored
-2. **No error checking on timeline/delegation inserts** — failures are silent
-3. **No success/failure count returned** — `processParsedResult` returns an actions string but `use-deals.ts` ignores it and uses `result.summary` instead
-4. **Possible exception mid-loop** — if any unhandled error occurs, remaining deals are skipped entirely
+The `useEffect` on lines 30-38 watches `[userId, chats, chatsLoading, currentChatId]`. When `chats` is empty, it calls `createChat()`, which calls `setChats(prev => [data, ...prev])` inside `useChats`. This changes `chats`, re-triggering the effect. If the chat insert fails (e.g. RLS issue), `chats` stays empty and `currentChatId` stays null, causing an infinite loop of `createChat` calls.
 
-## Changes
+Additionally, `fetchChats` is in the dependency array of its own `useEffect` inside `useChats`, and is recreated on every render if `userId` changes — but that should be stable with `useCallback`.
 
-### 1. `src/lib/deal-processor.ts` — Add error handling on every DB operation + return counts
+## Fixes
 
-- Wrap every `supabase.from().update()` and `supabase.from().insert()` call with error checking
-- Add `console.error` logging for every failed operation with the deal name and error details
-- Track `savedCount` and `failedCount` throughout the loop
-- Change return type to `{ actions: string[], savedCount: number, totalCount: number }` so the caller can detect mismatches
-- Add try/catch around each individual deal's processing so one failure doesn't kill the rest
+### 1. `src/pages/Index.tsx` — Guard against infinite chat creation loop
 
-### 2. `src/hooks/use-deals.ts` — Use the returned counts to warn user
+Add a `ref` to track whether chat creation is already in progress. Prevent the effect from calling `createChat` more than once.
 
-- After `processParsedResult` returns, check if `savedCount < totalCount`
-- If mismatch, append: `"⚠ {failedCount} of {totalCount} deals may not have saved. Check the board."`
-- Keep existing heuristic warning about missed deals in parsing
+### 2. `src/hooks/use-deals.ts` — Add error handling to `createChat`
 
-### 3. `src/lib/types.ts` — No changes needed
+If `createChat` fails, it currently returns `null` but the effect in Index keeps retrying. Add a flag or guard.
 
-All types are already correct. The `ParseResult` and `ParsedDeal` interfaces match the AI output format.
+### 3. `src/hooks/use-deals.ts` — Stabilize `fetchChats` reference
+
+Ensure `fetchChats` doesn't cause unnecessary re-renders by verifying the `useCallback` dependencies are stable.
 
 ## File Summary
 
 | File | Change |
 |------|--------|
-| `src/lib/deal-processor.ts` | Add error checking on all DB ops, console.error logging, return saved/total counts |
-| `src/hooks/use-deals.ts` | Use counts from processParsedResult to show save-failure warnings |
+| `src/pages/Index.tsx` | Add `useRef` guard to prevent repeated `createChat` calls in the auto-create effect |
+| `src/hooks/use-deals.ts` | Add error logging to `createChat`, ensure stable callback references |
 
