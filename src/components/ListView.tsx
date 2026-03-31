@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import type { Deal } from "@/lib/types";
 import { getStageLabel, formatCurrency, daysSinceUpdate } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -9,11 +11,12 @@ interface ListViewProps {
   deals: Deal[];
   search: string;
   onSelectDeal: (deal: Deal) => void;
+  onNewDeal?: () => void;
 }
 
 const STAGE_ORDER = ['legal_closing', 'hot_loi', 'due_diligence', 'engaged', 'initial_review', 'identified', 'completed', 'on_hold', 'dead'];
 
-export default function ListView({ deals, search, onSelectDeal }: ListViewProps) {
+export default function ListView({ deals, search, onSelectDeal, onNewDeal }: ListViewProps) {
   const filtered = useMemo(() => {
     let d = deals;
     if (search) {
@@ -29,6 +32,13 @@ export default function ListView({ deals, search, onSelectDeal }: ListViewProps)
 
   return (
     <div className="h-full overflow-auto p-3">
+      {onNewDeal && (
+        <div className="mb-2">
+          <Button variant="outline" size="sm" onClick={onNewDeal} className="h-7 text-xs gap-1">
+            <Plus className="h-3 w-3" /> New Deal
+          </Button>
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow className="border-border hover:bg-transparent">

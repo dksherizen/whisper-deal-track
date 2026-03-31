@@ -24,8 +24,9 @@ export default function Index() {
   const [search, setSearch] = useState("");
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [pendingChatInput, setPendingChatInput] = useState<string | null>(null);
+  const [creatingDeal, setCreatingDeal] = useState<string | null>(null); // null = not creating, string = default stage
+  const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
 
-  // Auto-select or create first chat
   useEffect(() => {
     if (!userId || chatsLoading) return;
     if (chats.length > 0 && !currentChatId) {
@@ -84,35 +85,98 @@ export default function Index() {
   };
 
   const handleDealChatAction = (text: string) => {
-    // If text ends with ": " it's a pre-populate (cursor in input), otherwise auto-send
     if (text.endsWith(': ')) {
       setPendingChatInput(text);
       setSelectedDeal(null);
+      setEditingDeal(null);
       setView('chat');
     } else {
       setSelectedDeal(null);
+      setEditingDeal(null);
       setView('chat');
       handleSend(text);
     }
   };
 
+  const handleNewDeal = (stage?: string) => {
+    setCreatingDeal(stage || 'identified');
+    setSelectedDeal(null);
+    setEditingDeal(null);
+  };
+
+  const handleEditDeal = (deal: Deal) => {
+    setEditingDeal(deal);
+    setSelectedDeal(null);
+    setCreatingDeal(null);
+  };
+
+  // Show new deal form
+  if (creatingDeal !== null) {
+    return (
+      <div className="h-screen flex flex-col bg-background">
+        <Header
+          deals={deals} view={view}
+          setView={(v) => { setView(v); setCreatingDeal(null); }}
+          search={search} setSearch={setSearch}
+          onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
+          onNewDeal={() => handleNewDeal()}
+        />
+        <div className="flex-1 overflow-hidden">
+          <DealDetail
+            isNew
+            defaultStage={creatingDeal}
+            userId={userId}
+            onBack={() => setCreatingDeal(null)}
+            onUpdate={refetchDeals}
+            onCreated={(deal) => {
+              setCreatingDeal(null);
+              setSelectedDeal(deal);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Show deal in edit mode
+  if (editingDeal) {
+    return (
+      <div className="h-screen flex flex-col bg-background">
+        <Header
+          deals={deals} view={view}
+          setView={(v) => { setView(v); setEditingDeal(null); }}
+          search={search} setSearch={setSearch}
+          onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
+          onNewDeal={() => handleNewDeal()}
+        />
+        <div className="flex-1 overflow-hidden">
+          <DealDetail
+            deal={editingDeal}
+            onBack={() => setEditingDeal(null)}
+            onUpdate={() => { refetchDeals(); setEditingDeal(null); }}
+            onChatAction={handleDealChatAction}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Show deal detail (read mode)
   if (selectedDeal) {
     return (
       <div className="h-screen flex flex-col bg-background">
         <Header
-          deals={deals}
-          view={view}
+          deals={deals} view={view}
           setView={(v) => { setView(v); setSelectedDeal(null); }}
-          search={search}
-          setSearch={setSearch}
-          onDeleteAllDeals={handleDeleteAllDeals}
-          onSignOut={signOut}
+          search={search} setSearch={setSearch}
+          onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
+          onNewDeal={() => handleNewDeal()}
         />
         <div className="flex-1 overflow-hidden">
           <DealDetail
             deal={selectedDeal}
             onBack={() => setSelectedDeal(null)}
-            onUpdate={() => { refetchDeals(); }}
+            onUpdate={refetchDeals}
             onChatAction={handleDealChatAction}
           />
         </div>
@@ -123,36 +187,38 @@ export default function Index() {
   return (
     <div className="h-screen flex flex-col bg-background">
       <Header
-        deals={deals}
-        view={view}
-        setView={setView}
-        search={search}
-        setSearch={setSearch}
-        onDeleteAllDeals={handleDeleteAllDeals}
-        onSignOut={signOut}
+        deals={deals} view={view} setView={setView}
+        search={search} setSearch={setSearch}
+        onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
+        onNewDeal={() => handleNewDeal()}
       />
       <div className="flex-1 overflow-hidden">
         {view === 'chat' && (
           <ChatView
-            messages={messages}
-            parsing={parsing}
-            onSend={handleSend}
-            queuedTexts={queuedTexts}
-            queueCount={queueCount}
-            chats={chats}
-            currentChatId={currentChatId}
-            onSelectChat={setCurrentChatId}
-            onNewChat={handleNewChat}
+            messages={messages} parsing={parsing} onSend={handleSend}
+            queuedTexts={queuedTexts} queueCount={queueCount}
+            chats={chats} currentChatId={currentChatId}
+            onSelectChat={setCurrentChatId} onNewChat={handleNewChat}
             onDeleteChat={handleDeleteChat}
             pendingInput={pendingChatInput}
             onPendingInputConsumed={() => setPendingChatInput(null)}
           />
         )}
         {view === 'board' && (
-          <BoardView deals={deals} search={search} onSelectDeal={setSelectedDeal} />
+          <BoardView
+            deals={deals} search={search}
+            onSelectDeal={setSelectedDeal}
+            onEditDeal={handleEditDeal}
+            onNewDeal={handleNewDeal}
+            onRefetch={refetchDeals}
+          />
         )}
         {view === 'list' && (
-          <ListView deals={deals} search={search} onSelectDeal={setSelectedDeal} />
+          <ListView
+            deals={deals} search={search}
+            onSelectDeal={setSelectedDeal}
+            onNewDeal={() => handleNewDeal()}
+          />
         )}
       </div>
     </div>
