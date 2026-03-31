@@ -22,7 +22,7 @@ export default function ChatView({ messages, parsing, onSend, queuedTexts, queue
 
   const handleSend = () => {
     const text = input.trim();
-    if (!text || parsing) return;
+    if (!text) return;
     setInput("");
     onSend(text);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
