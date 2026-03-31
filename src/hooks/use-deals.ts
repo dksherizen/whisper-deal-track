@@ -116,17 +116,31 @@ export function useDealChat(
           await add('assistant', `No deal found matching "${result.dealName}".`);
         }
       } else {
-        await processParsedResult(result, currentDeals, userId!);
-        await refetchRef.current();
-        let responseText = '';
-        if (result.summary) responseText += result.summary;
-        if (result.question) responseText += '\n\n' + result.question;
-        if (!responseText) responseText = 'Processed.';
-        await add('assistant', responseText);
+        try {
+          await processParsedResult(result, currentDeals, userId!);
+          await refetchRef.current();
+          let responseText = '';
+          if (result.summary) responseText += result.summary;
+          if (result.question) responseText += '\n\n' + result.question;
+          if (!responseText) responseText = 'Processed.';
+          await add('assistant', responseText);
+        } catch (saveErr: any) {
+          console.error('DB save error:', saveErr);
+          let responseText = '';
+          if (result.summary) responseText += result.summary;
+          if (result.question) responseText += '\n\n' + result.question;
+          responseText += '\n\n⚠ Parsed successfully but couldn\'t save to database. Try refreshing.';
+          await add('assistant', responseText, true);
+        }
       }
     } catch (err: any) {
       console.error('Chat error:', err);
-      await add('assistant', `Error: ${err.message || 'Failed to process message'}`, true);
+      const msg = err.message || '';
+      if (msg.includes('parse') || msg.includes('JSON')) {
+        await add('assistant', "Couldn't parse that. Try rephrasing?", true);
+      } else {
+        await add('assistant', 'Something went wrong. Try again.', true);
+      }
     }
   };
 
