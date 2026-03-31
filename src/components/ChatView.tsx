@@ -104,7 +104,7 @@ export default function ChatView({ messages, parsing, onSend, queuedTexts, queue
           />
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || parsing}
+            disabled={!input.trim()}
             size="icon"
             className="h-9 w-9 shrink-0"
           >

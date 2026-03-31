@@ -87,7 +87,7 @@ export default function Index() {
       />
       <div className="flex-1 overflow-hidden">
         {view === 'chat' && (
-          <ChatView messages={messages} parsing={parsing} onSend={handleSend} />
+          <ChatView messages={messages} parsing={parsing} onSend={handleSend} queuedTexts={queuedTexts} queueCount={queueCount} />
         )}
         {view === 'board' && (
           <BoardView deals={deals} search={search} onSelectDeal={setSelectedDeal} />
