@@ -18,6 +18,10 @@ const FIELD_MAP: Record<string, string> = {
   nextStepDate: 'next_step_date',
 };
 
+const INTEGER_FIELDS = new Set(['beds']);
+const NUMERIC_FIELDS = new Set(['asking_price', 'revenue', 'ebitda', 'ebitdar', 'rent_coverage', 'occupancy']);
+const DATE_FIELDS = new Set(['next_step_date']);
+
 function mapFields(fields: Record<string, any>): Record<string, any> {
   const mapped: Record<string, any> = {};
   for (const [key, value] of Object.entries(fields)) {
@@ -26,6 +30,74 @@ function mapFields(fields: Record<string, any>): Record<string, any> {
     mapped[dbKey] = value;
   }
   return mapped;
+}
+
+function normalizeNumericValue(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const normalized = trimmed.replace(/[£$,\s%]/g, '').replace(/,/g, '');
+  if (!normalized || /[a-z]/i.test(normalized)) return null;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeDateValue(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const hasCalendarSignal = /\d|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(trimmed);
+  if (!hasCalendarSignal) return null;
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+}
+
+function sanitizeDealPayload(payload: Record<string, any>, dealName: string): Record<string, any> {
+  const sanitized: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === undefined) continue;
+
+    if (DATE_FIELDS.has(key)) {
+      const normalizedDate = normalizeDateValue(value);
+      if (normalizedDate) {
+        sanitized[key] = normalizedDate;
+      } else if (value !== null && value !== '') {
+        console.warn(`Dropping invalid ${key} for ${dealName}:`, value);
+      }
+      continue;
+    }
+
+    if (INTEGER_FIELDS.has(key)) {
+      const normalizedInteger = normalizeNumericValue(value);
+      if (normalizedInteger !== null) sanitized[key] = Math.round(normalizedInteger);
+      else if (value !== null && value !== '') console.warn(`Dropping invalid ${key} for ${dealName}:`, value);
+      continue;
+    }
+
+    if (NUMERIC_FIELDS.has(key)) {
+      const normalizedNumber = normalizeNumericValue(value);
+      if (normalizedNumber !== null) sanitized[key] = normalizedNumber;
+      else if (value !== null && value !== '') console.warn(`Dropping invalid ${key} for ${dealName}:`, value);
+      continue;
+    }
+
+    sanitized[key] = value;
+  }
+
+  return sanitized;
 }
 
 function matchDeal(parsed: ParsedDeal, deals: Deal[]): Deal | null {
@@ -95,15 +167,17 @@ export async function processParsedResult(
 
         if (existingDeal) {
           const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
-          const updatePayload = Object.keys(fields).length > 0
+          const updatePayload = sanitizeDealPayload(Object.keys(fields).length > 0
             ? { ...fields, updated_at: new Date().toISOString() }
-            : { updated_at: new Date().toISOString() };
+            : { updated_at: new Date().toISOString() }, parsedDeal.name);
+          console.log(`Attempting to update deal "${parsedDeal.name}"`, { dealId: existingDeal.id, payload: updatePayload });
           const { error } = await supabase.from('deals').update(updatePayload).eq('id', existingDeal.id);
           if (error) {
             console.error(`Failed to update deal ${parsedDeal.name}:`, error);
             actions.push(`${parsedDeal.name} — failed to update`);
             continue;
           }
+          console.log(`Successfully updated deal "${parsedDeal.name}"`);
 
           if (parsedDeal.timelineEntry) {
             const { error: tlErr } = await supabase.from('timeline_entries').insert({ deal_id: existingDeal.id, text: parsedDeal.timelineEntry, source: 'ai' });
@@ -122,9 +196,11 @@ export async function processParsedResult(
 
         // Create new deal
         const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
+        const insertPayload = sanitizeDealPayload({ name: parsedDeal.name, ...fields, user_id: userId }, parsedDeal.name);
+        console.log(`Attempting to insert deal "${parsedDeal.name}"`, insertPayload);
         const { data: newDeal, error } = await supabase
           .from('deals')
-          .insert({ name: parsedDeal.name, ...fields, user_id: userId })
+          .insert(insertPayload as any)
           .select()
           .single();
 
@@ -133,6 +209,7 @@ export async function processParsedResult(
           actions.push(`${parsedDeal.name} — failed to create`);
           continue;
         }
+        console.log(`Successfully created deal "${parsedDeal.name}"`, newDeal);
 
         if (parsedDeal.timelineEntry) {
           const { error: tlErr } = await supabase.from('timeline_entries').insert({ deal_id: newDeal.id, text: parsedDeal.timelineEntry, source: 'ai' });

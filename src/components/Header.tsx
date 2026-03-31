@@ -23,9 +23,10 @@ interface HeaderProps {
   onDeleteAllDeals: () => void;
   onSignOut: () => void;
   onNewDeal?: () => void;
+  onInsertTestDeal?: () => void;
 }
 
-export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut, onNewDeal }: HeaderProps) {
+export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut, onNewDeal, onInsertTestDeal }: HeaderProps) {
   const stats = useMemo(() => {
     const active = deals.filter(d => !['completed', 'on_hold', 'dead'].includes(d.stage));
     const totalBeds = active.reduce((sum, d) => sum + (d.beds || 0), 0);
@@ -98,6 +99,12 @@ export default function Header({ deals, view, setView, search, setSearch, onDele
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="bg-card border-border">
+          {onInsertTestDeal && (
+            <DropdownMenuItem onClick={onInsertTestDeal} className="text-xs gap-2">
+              <Plus className="h-3 w-3" />
+              Insert Test Deal
+            </DropdownMenuItem>
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive text-xs gap-2">
