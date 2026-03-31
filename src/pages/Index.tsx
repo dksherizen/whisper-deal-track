@@ -48,7 +48,7 @@ export default function Index() {
   };
 
   const handleSend = (text: string) => {
-    sendMessage(text, addMessage, messages);
+    enqueue(text);
   };
 
   if (selectedDeal) {
