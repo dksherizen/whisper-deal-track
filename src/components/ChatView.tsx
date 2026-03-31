@@ -107,6 +107,15 @@ export default function ChatView({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, parsing, queuedTexts]);
 
+  // Handle pending input from deal detail actions
+  useEffect(() => {
+    if (pendingInput) {
+      setInput(pendingInput);
+      onPendingInputConsumed?.();
+      setTimeout(() => textareaRef.current?.focus(), 100);
+    }
+  }, [pendingInput]);
+
   const handleSend = (text?: string) => {
     const toSend = text || input.trim();
     if (!toSend) return;
