@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Deal, TimelineEntry, Delegation } from "@/lib/types";
 import { ALL_STAGES, getStageLabel, formatCurrency } from "@/lib/constants";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +19,8 @@ interface DealDetailProps {
   onBack: () => void;
   onUpdate: () => void;
 }
+
+const MONEY_FIELDS = ['asking_price', 'revenue', 'ebitda', 'ebitdar'];
 
 const FIELD_GROUPS = [
   {
@@ -74,7 +77,7 @@ const FIELD_GROUPS = [
     ],
   },
   {
-    title: 'Status',
+    title: 'Status & Next Steps',
     fields: [
       { key: 'next_step', label: 'Next Step', type: 'text' },
       { key: 'next_step_owner', label: 'Next Step Owner', type: 'text' },
@@ -159,13 +162,15 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
     loadDelegations();
   };
 
-  const renderField = (field: any) => {
+  const renderField = (field: { key: string; label: string; type: string; options?: string[] }) => {
     const value = form[field.key];
+
     if (!editing) {
-      if (field.type === 'number' && field.key.includes('price') || field.key === 'revenue' || field.key === 'ebitda' || field.key === 'ebitdar') {
-        return <span className="text-sm">{formatCurrency(value, form.currency || 'GBP')}</span>;
+      if (MONEY_FIELDS.includes(field.key)) {
+        return <span className="text-sm text-foreground">{formatCurrency(value, form.currency || 'GBP')}</span>;
       }
-      return <span className="text-sm">{value || '—'}</span>;
+      const display = value != null && value !== '' ? String(value) : null;
+      return <span className={`text-sm ${display ? 'text-foreground' : 'text-muted-foreground'}`}>{display || '—'}</span>;
     }
 
     if (field.type === 'select') {
@@ -175,7 +180,7 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
             <SelectValue placeholder="—" />
           </SelectTrigger>
           <SelectContent>
-            {field.options.map((o: string) => (
+            {field.options?.map((o: string) => (
               <SelectItem key={o} value={o}>{o}</SelectItem>
             ))}
           </SelectContent>
@@ -194,7 +199,7 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
     return (
       <Input
         type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-        value={value || ''}
+        value={value ?? ''}
         onChange={e => setForm({ ...form, [field.key]: field.type === 'number' ? (e.target.value ? Number(e.target.value) : null) : e.target.value })}
         className="h-7 text-xs bg-secondary border-border"
       />
@@ -254,10 +259,10 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
         )}
       </div>
 
-      {/* Content */}
-      <div className="flex gap-0">
-        {/* Left - fields */}
-        <div className="flex-1 p-3 space-y-4 border-r border-border min-w-0">
+      {/* Content — 70/30 split */}
+      <div className="flex">
+        {/* Left — fields (70%) */}
+        <div className="w-[70%] p-4 space-y-5 border-r border-border min-w-0">
           {FIELD_GROUPS.map(group => (
             <div key={group.title}>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{group.title}</h3>
@@ -273,12 +278,15 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
           ))}
         </div>
 
-        {/* Right - delegations & timeline */}
-        <div className="w-80 shrink-0 p-3 space-y-4 overflow-y-auto">
+        {/* Right — delegations & timeline (30%) */}
+        <div className="w-[30%] shrink-0 p-4 space-y-5 overflow-y-auto">
           {/* Delegations */}
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Delegations</h3>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
+              {delegations.length === 0 && (
+                <p className="text-2xs text-muted-foreground">No delegations yet.</p>
+              )}
               {delegations.map(d => (
                 <div key={d.id} className="flex items-start gap-2 text-sm">
                   <Checkbox
@@ -286,7 +294,7 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
                     onCheckedChange={() => toggleDelegation(d.id, d.done)}
                     className="mt-0.5"
                   />
-                  <div className={d.done ? 'line-through text-muted-foreground' : ''}>
+                  <div className={d.done ? 'line-through text-muted-foreground' : 'text-foreground'}>
                     <span className="font-medium">{d.assignee}:</span> {d.task}
                     <div className="text-2xs text-muted-foreground">{d.date}</div>
                   </div>
@@ -305,16 +313,32 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
           {/* Timeline */}
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Timeline</h3>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
+              {timeline.length === 0 && (
+                <p className="text-2xs text-muted-foreground">No timeline entries yet.</p>
+              )}
               {timeline.map(t => (
-                <div key={t.id} className="text-sm">
-                  <div className="text-2xs text-muted-foreground">{t.date} · {t.source}</div>
-                  <div>{t.text}</div>
+                <div key={t.id} className="flex gap-2 text-sm">
+                  <span className="text-2xs text-muted-foreground whitespace-nowrap pt-0.5">{t.date}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">{t.text}</span>
+                      {t.source === 'ai' && (
+                        <Badge variant="secondary" className="text-[9px] h-3.5 px-1 shrink-0">ai</Badge>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
             <div className="mt-2 flex gap-1">
-              <Input value={newTimelineText} onChange={e => setNewTimelineText(e.target.value)} placeholder="Add timeline entry..." className="h-6 text-xs bg-secondary border-border" onKeyDown={e => e.key === 'Enter' && addTimeline()} />
+              <Input
+                value={newTimelineText}
+                onChange={e => setNewTimelineText(e.target.value)}
+                placeholder="Add timeline entry..."
+                className="h-6 text-xs bg-secondary border-border"
+                onKeyDown={e => e.key === 'Enter' && addTimeline()}
+              />
               <Button size="icon" variant="ghost" onClick={addTimeline} className="h-6 w-6"><Plus className="h-3 w-3" /></Button>
             </div>
           </div>
