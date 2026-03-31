@@ -12,12 +12,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Pencil, Trash2, Plus, Save, X } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Plus, Save, X, MessageSquare, CheckSquare, Clock, RefreshCw } from "lucide-react";
 
 interface DealDetailProps {
   deal: Deal;
   onBack: () => void;
   onUpdate: () => void;
+  onChatAction?: (text: string) => void;
 }
 
 const MONEY_FIELDS = ['asking_price', 'revenue', 'ebitda', 'ebitdar'];
@@ -88,7 +89,7 @@ const FIELD_GROUPS = [
   },
 ];
 
-export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) {
+export default function DealDetail({ deal, onBack, onUpdate, onChatAction }: DealDetailProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, any>>({});
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
@@ -259,6 +260,38 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
         )}
       </div>
 
+      {/* Deal-specific quick actions */}
+      {onChatAction && !editing && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card/50">
+          <Button
+            variant="outline" size="sm" className="h-6 text-[11px] gap-1"
+            onClick={() => onChatAction(`Update on ${deal.name}: `)}
+          >
+            <RefreshCw className="h-3 w-3" /> Update
+          </Button>
+          <Button
+            variant="outline" size="sm" className="h-6 text-[11px] gap-1"
+            onClick={() => onChatAction(`[INTERVIEW MODE] The user wants to be interviewed about an existing deal called ${deal.name}. Review the existing data and ask about missing fields or gaps. Ask ONE question at a time.`)}
+          >
+            <MessageSquare className="h-3 w-3" /> Interview
+          </Button>
+          <Button
+            variant="outline" size="sm" className="h-6 text-[11px] gap-1"
+            onClick={() => onChatAction(`show me all delegations on ${deal.name}`)}
+          >
+            <CheckSquare className="h-3 w-3" /> Delegations
+          </Button>
+          <Button
+            variant="outline" size="sm" className="h-6 text-[11px] gap-1"
+            onClick={() => {
+              document.getElementById('timeline-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
+            <Clock className="h-3 w-3" /> Timeline
+          </Button>
+        </div>
+      )}
+
       {/* Content — 70/30 split */}
       <div className="flex">
         {/* Left — fields (70%) */}
@@ -311,7 +344,7 @@ export default function DealDetail({ deal, onBack, onUpdate }: DealDetailProps) 
           </div>
 
           {/* Timeline */}
-          <div>
+          <div id="timeline-section">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Timeline</h3>
             <div className="space-y-2.5">
               {timeline.length === 0 && (

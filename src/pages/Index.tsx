@@ -23,6 +23,7 @@ export default function Index() {
   const [view, setView] = useState<ViewMode>('chat');
   const [search, setSearch] = useState("");
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [pendingChatInput, setPendingChatInput] = useState<string | null>(null);
 
   // Auto-select or create first chat
   useEffect(() => {
@@ -66,7 +67,6 @@ export default function Index() {
   const handleDeleteChat = async (chatId: string) => {
     await deleteChat(chatId);
     if (currentChatId === chatId) {
-      // Switch to the next available chat or create new
       const remaining = chats.filter(c => c.id !== chatId);
       if (remaining.length > 0) {
         setCurrentChatId(remaining[0].id);
@@ -80,7 +80,20 @@ export default function Index() {
 
   const handleSend = (text: string) => {
     enqueue(text);
-    fetchChats(); // refresh chat list to update title/timestamp
+    fetchChats();
+  };
+
+  const handleDealChatAction = (text: string) => {
+    // If text ends with ": " it's a pre-populate (cursor in input), otherwise auto-send
+    if (text.endsWith(': ')) {
+      setPendingChatInput(text);
+      setSelectedDeal(null);
+      setView('chat');
+    } else {
+      setSelectedDeal(null);
+      setView('chat');
+      handleSend(text);
+    }
   };
 
   if (selectedDeal) {
@@ -100,6 +113,7 @@ export default function Index() {
             deal={selectedDeal}
             onBack={() => setSelectedDeal(null)}
             onUpdate={() => { refetchDeals(); }}
+            onChatAction={handleDealChatAction}
           />
         </div>
       </div>
@@ -130,6 +144,8 @@ export default function Index() {
             onSelectChat={setCurrentChatId}
             onNewChat={handleNewChat}
             onDeleteChat={handleDeleteChat}
+            pendingInput={pendingChatInput}
+            onPendingInputConsumed={() => setPendingChatInput(null)}
           />
         )}
         {view === 'board' && (

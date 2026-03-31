@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Deal, Message, Chat } from "@/lib/types";
 import type { ParseResult } from "@/lib/types";
-import { processParsedResult, buildStatusResponse, buildDealQueryResponse } from "@/lib/deal-processor";
+import { processParsedResult, buildStatusResponse, buildDealQueryResponse, buildDelegationsResponse } from "@/lib/deal-processor";
 
 export function useDeals(userId: string | null) {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -103,7 +103,6 @@ export function useMessages(userId: string | null, chatId: string | null) {
     if (data) {
       setMessages(prev => [...prev, data as Message]);
     }
-    // Update chat title from first user message
     if (role === 'user') {
       const isFirst = messages.length === 0;
       if (isFirst) {
@@ -120,7 +119,6 @@ export function useMessages(userId: string | null, chatId: string | null) {
 }
 
 function countPossibleDealNames(text: string): number {
-  // Heuristic: find sequences of 2+ capitalized words or all-caps words
   const matches = text.match(/\b[A-Z][A-Z]+(?:\s+[A-Z][A-Z]+)*\b/g) || [];
   const unique = new Set(matches.filter(m => m.length > 3));
   return unique.size;
@@ -164,9 +162,18 @@ export function useDealChat(
 
       const result = data as ParseResult;
 
+      // Handle plain text response (interview mode)
+      if (result.text && !result.deals && !result.command) {
+        await add('assistant', result.text);
+        return;
+      }
+
       if (result.command === 'status') {
         const statusText = buildStatusResponse(currentDeals);
         await add('assistant', statusText);
+      } else if (result.command === 'delegations') {
+        const delText = await buildDelegationsResponse();
+        await add('assistant', delText);
       } else if (result.command === 'query' && result.dealName) {
         const dealName = result.dealName.toUpperCase();
         const deal = currentDeals.find(d =>
@@ -190,7 +197,6 @@ export function useDealChat(
           if (result.question) responseText += '\n\n' + result.question;
           if (!responseText) responseText = 'Processed.';
 
-          // Heuristic: check if deals might have been missed
           const possibleNames = countPossibleDealNames(text);
           const returnedDeals = result.deals?.length || 0;
           if (possibleNames > returnedDeals + 1 && possibleNames > 2) {

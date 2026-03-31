@@ -13,6 +13,8 @@ SPECIAL COMMANDS:
 - If the user asks "where do we stand", "full picture", "status", "pipeline", or similar: return { "command": "status" } and nothing else.
 - If the user asks about a specific deal by name or alias: return { "command": "query", "dealName": "DEAL NAME" }
 - If the user asks "did I ask someone to do something on [deal]" or similar delegation questions: return { "command": "query", "dealName": "DEAL NAME" }
+- If the user asks "show me all open delegations" or "who was supposed to do what" or similar: return { "command": "delegations" } and nothing else.
+- If the message starts with [INTERVIEW MODE], switch to conversational mode. Ask ONE question at a time to build a deal record. Return plain text responses (not JSON) for each question. When you have enough info to create the deal, return the standard JSON with action "create". Add in the summary: "Deal created. Anything else to add?"
 
 For ALL OTHER messages, return a JSON object with this exact structure:
 {
@@ -148,11 +150,8 @@ serve(async (req) => {
       const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      console.error("Failed to parse AI response:", text);
-      return new Response(
-        JSON.stringify({ error: "Failed to parse AI response", raw: text }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Not JSON — could be interview mode plain text response
+      parsed = { text: text };
     }
 
     return new Response(JSON.stringify(parsed), {
