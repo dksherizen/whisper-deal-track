@@ -1,90 +1,40 @@
 
 
-# Multi-Chat, Shared Workspace, and Parsing Improvements
+# Fix: Deals not saving to database
 
-## 1. Database Changes
+## Root Cause Analysis
 
-**New `chats` table:**
-- `id` (uuid, PK), `title` (text, default 'New Chat'), `created_at` (timestamptz), `updated_at` (timestamptz), `user_id` (uuid)
-- RLS: users see only their own chats (INSERT/SELECT/UPDATE/DELETE filtered by `auth.uid() = user_id`)
+The code in `deal-processor.ts` already has camelCase→snake_case field mapping and processes deals individually. However, it has these problems:
 
-**Alter `messages` table:**
-- Add `chat_id` (uuid, nullable initially for migration, then foreign key to `chats.id` with `ON DELETE CASCADE`)
+1. **No error checking on updates** (lines 93-97) — if a Supabase update fails, it's silently ignored
+2. **No error checking on timeline/delegation inserts** — failures are silent
+3. **No success/failure count returned** — `processParsedResult` returns an actions string but `use-deals.ts` ignores it and uses `result.summary` instead
+4. **Possible exception mid-loop** — if any unhandled error occurs, remaining deals are skipped entirely
 
-**Alter RLS on deals, timeline_entries, delegations, contacts:**
-- Change SELECT policies to allow ALL authenticated users to read (not just `user_id = auth.uid()`)
-- Keep INSERT policies requiring `user_id = auth.uid()` (tracks creator)
-- Keep UPDATE/DELETE restricted to owner
+## Changes
 
-## 2. Edge Function: `parse-deal-input`
+### 1. `src/lib/deal-processor.ts` — Add error handling on every DB operation + return counts
 
-- Increase `max_tokens` from 1500 to 3000
-- Update system prompt: instruct model to list each deal on a separate line in the summary as `DEAL NAME — action taken (new / updated / marked dead)`, then blank line, then summary text, then question
+- Wrap every `supabase.from().update()` and `supabase.from().insert()` call with error checking
+- Add `console.error` logging for every failed operation with the deal name and error details
+- Track `savedCount` and `failedCount` throughout the loop
+- Change return type to `{ actions: string[], savedCount: number, totalCount: number }` so the caller can detect mismatches
+- Add try/catch around each individual deal's processing so one failure doesn't kill the rest
 
-## 3. Client-Side Parsing Improvements
+### 2. `src/hooks/use-deals.ts` — Use the returned counts to warn user
 
-**`deal-processor.ts`** — field mapping already exists and looks correct. No changes needed there.
+- After `processParsedResult` returns, check if `savedCount < totalCount`
+- If mismatch, append: `"⚠ {failedCount} of {totalCount} deals may not have saved. Check the board."`
+- Keep existing heuristic warning about missed deals in parsing
 
-**`use-deals.ts`** — after processing parsed result, add a heuristic check: count unique ALLCAPS multi-word sequences in the original input text, compare against `result.deals?.length`. If input mentions more deal-like names than returned, append a warning to the assistant response: "I may have missed some deals in that dump. Try sending updates for specific deals separately if something's missing."
+### 3. `src/lib/types.ts` — No changes needed
 
-## 4. Multi-Chat System
+All types are already correct. The `ParseResult` and `ParsedDeal` interfaces match the AI output format.
 
-**New types in `types.ts`:**
-- `Chat` interface: `id`, `title`, `created_at`, `updated_at`, `user_id`
-- Add `chat_id` to `Message` interface
-
-**New hook: `useChats(userId)`**
-- Fetch all chats for user, ordered by `updated_at` desc
-- `createChat()` — inserts new chat, returns it
-- `deleteChat(chatId)` — deletes chat (messages cascade)
-- `updateChatTitle(chatId, title)`
-
-**Update `useMessages`:**
-- Accept `chatId` parameter, filter messages by `chat_id`
-- `addMessage` includes `chat_id`
-
-**Update `useDealChat`:**
-- Works within current chat context
-- Deals context always pulls from shared deals table (already does this)
-
-## 5. UI Changes
-
-**`ChatView.tsx`** — add a left sidebar/panel showing chat list:
-- List of chats with title and relative timestamp
-- "New Chat" button at top
-- Click chat to switch
-- Delete button per chat with confirmation dialog
-- Active chat highlighted
-
-**`Header.tsx`:**
-- Remove the Reset button (the nuclear option)
-- Add a "Delete All Deals" option inside a settings dropdown (with double confirmation)
-
-**`Index.tsx`:**
-- Manage `currentChatId` state
-- On first load, select most recent chat or auto-create one
-- Pass chat switching handlers to ChatView
-- Wire up `useMessages` with `chatId`
-
-## 6. Shared Data RLS Changes
-
-Deals, timeline_entries, delegations, contacts SELECT policies become:
-```sql
--- Allow all authenticated users to view
-USING (auth.uid() IS NOT NULL)
-```
-INSERT stays as `auth.uid() = user_id`. UPDATE/DELETE stay owner-only.
-
-## File Change Summary
+## File Summary
 
 | File | Change |
 |------|--------|
-| Migration SQL | New `chats` table, alter `messages`, update RLS policies |
-| `src/lib/types.ts` | Add `Chat` type, add `chat_id` to `Message` |
-| `src/hooks/use-deals.ts` | Add `useChats` hook, update `useMessages` for chat_id, add deal-count mismatch warning |
-| `src/components/ChatView.tsx` | Add chat sidebar with list, new chat, delete chat |
-| `src/components/Header.tsx` | Remove Reset button, add settings dropdown with "Delete All Deals" |
-| `src/pages/Index.tsx` | Wire up multi-chat state management |
-| `supabase/functions/parse-deal-input/index.ts` | Increase max_tokens to 3000, update summary format in system prompt |
-| `src/lib/deal-processor.ts` | No changes needed (field mapping already correct) |
+| `src/lib/deal-processor.ts` | Add error checking on all DB ops, console.error logging, return saved/total counts |
+| `src/hooks/use-deals.ts` | Use counts from processParsedResult to show save-failure warnings |
 
