@@ -95,6 +95,7 @@ function renderFormattedText(text: string, structured: boolean) {
 export default function ChatView({
   messages, parsing, onSend, queuedTexts, queueCount,
   chats, currentChatId, onSelectChat, onNewChat, onDeleteChat,
+  pendingInput, onPendingInputConsumed,
 }: ChatViewProps) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
