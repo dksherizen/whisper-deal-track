@@ -68,6 +68,14 @@ export interface Contact {
   user_id: string;
 }
 
+export interface Chat {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -75,6 +83,7 @@ export interface Message {
   is_error: boolean;
   created_at: string;
   user_id: string;
+  chat_id: string | null;
 }
 
 // AI parsing types

@@ -65,7 +65,7 @@ For ALL OTHER messages, return a JSON object with this exact structure:
   "contacts": [
     { "name": "", "company": "", "role": "", "notes": "" }
   ],
-  "summary": "2-3 line factual confirmation of what was captured. No filler. No preamble. No advice.",
+  "summary": "List each deal on its own line as: DEAL NAME — action (new / updated / marked dead). Then a blank line, then 1-2 sentences of factual confirmation. No filler. No preamble. No advice.",
   "question": "ONE follow-up question to fill the most important gap. Null if nothing is missing."
 }
 
@@ -127,7 +127,7 @@ serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT + dealsContext },
           ...conversationMessages,
         ],
-        max_tokens: 1500,
+        max_tokens: 3000,
       }),
     });
 

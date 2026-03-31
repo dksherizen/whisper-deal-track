@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { Deal } from "@/lib/types";
 import { formatCurrency } from "@/lib/constants";
-import { Search, RotateCcw } from "lucide-react";
+import { Search, Settings, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type ViewMode = 'chat' | 'board' | 'list';
 
@@ -24,11 +30,11 @@ interface HeaderProps {
   setView: (v: ViewMode) => void;
   search: string;
   setSearch: (s: string) => void;
-  onReset: () => void;
+  onDeleteAllDeals: () => void;
   onSignOut: () => void;
 }
 
-export default function Header({ deals, view, setView, search, setSearch, onReset, onSignOut }: HeaderProps) {
+export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut }: HeaderProps) {
   const stats = useMemo(() => {
     const active = deals.filter(d => !['completed', 'on_hold', 'dead'].includes(d.stage));
     const totalBeds = active.reduce((sum, d) => sum + (d.beds || 0), 0);
@@ -88,27 +94,34 @@ export default function Header({ deals, view, setView, search, setSearch, onRese
         </div>
       )}
 
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
-            <RotateCcw className="h-3 w-3" />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+            <Settings className="h-3.5 w-3.5" />
           </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent className="bg-card border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset all data?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently delete all deals, messages, contacts, and timeline entries.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onReset} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Reset</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Button variant="ghost" size="sm" onClick={onSignOut} className="text-xs text-muted-foreground h-7">
-        Sign Out
-      </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="bg-card border-border">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive text-xs gap-2">
+                <Trash2 className="h-3 w-3" />
+                Delete All Deals
+              </DropdownMenuItem>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-card border-border">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete ALL deals?</AlertDialogTitle>
+                <AlertDialogDescription>This will permanently delete all deals, timeline entries, delegations, and contacts. Chat history will be preserved. This cannot be undone.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onDeleteAllDeals} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Everything</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <DropdownMenuItem onClick={onSignOut} className="text-xs">Sign Out</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   );
 }
