@@ -87,7 +87,8 @@ export async function processParsedResult(
         continue;
       }
 
-      if (parsedDeal.action === 'update' && existingDeal) {
+      if (existingDeal) {
+        // Update existing deal
         const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
         if (Object.keys(fields).length > 0) {
           await supabase.from('deals').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', existingDeal.id);
