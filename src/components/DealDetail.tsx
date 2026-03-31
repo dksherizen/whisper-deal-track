@@ -12,12 +12,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Pencil, Trash2, Plus, Save, X } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Plus, Save, X, MessageSquare, CheckSquare, Clock, RefreshCw } from "lucide-react";
 
 interface DealDetailProps {
   deal: Deal;
   onBack: () => void;
   onUpdate: () => void;
+  onChatAction?: (text: string) => void;
 }
 
 const MONEY_FIELDS = ['asking_price', 'revenue', 'ebitda', 'ebitdar'];

@@ -271,6 +271,45 @@ export function buildDealQueryResponse(deal: Deal, timeline: any[], delegations:
   return text;
 }
 
+export async function buildDelegationsResponse(): Promise<string> {
+  const { data: delegations } = await supabase
+    .from('delegations')
+    .select('*')
+    .eq('done', false)
+    .order('date', { ascending: false });
+
+  if (!delegations || delegations.length === 0) {
+    return 'No open delegations across any deals.';
+  }
+
+  // Get deal names for grouping
+  const dealIds = [...new Set(delegations.map(d => d.deal_id))];
+  const { data: deals } = await supabase
+    .from('deals')
+    .select('id, name')
+    .in('id', dealIds);
+
+  const dealMap = new Map((deals || []).map(d => [d.id, d.name]));
+
+  // Group by deal
+  const grouped: Record<string, typeof delegations> = {};
+  for (const del of delegations) {
+    const dealName = dealMap.get(del.deal_id) || 'Unknown Deal';
+    if (!grouped[dealName]) grouped[dealName] = [];
+    grouped[dealName].push(del);
+  }
+
+  let text = 'OPEN DELEGATIONS\n';
+  for (const [dealName, dels] of Object.entries(grouped)) {
+    text += `\n${dealName}\n`;
+    for (const d of dels) {
+      text += `  ○ ${d.assignee}: ${d.task}\n`;
+    }
+  }
+
+  return text;
+}
+
 function daysSince(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }

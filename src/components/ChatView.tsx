@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import type { Message, Chat } from "@/lib/types";
-import { Loader2, Send, Plus, Trash2, MessageSquare } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, MessageSquare, ClipboardList, Search, CheckSquare, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,15 @@ interface ChatViewProps {
   onDeleteChat: (chatId: string) => void;
 }
 
+const STARTER_PROMPTS = [
+  "New deal just came in",
+  "Update on an existing deal",
+  "Where do we stand on everything",
+  "Interview me about a deal",
+  "Forward an email",
+  "Who was supposed to do what",
+];
+
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -51,7 +61,8 @@ function isStructuredBlock(text: string): boolean {
   return lines.length > 5 && (
     text.includes('PIPELINE') || text.includes('ACTIVE') ||
     text.includes('Stage:') || text.includes('TIMELINE') ||
-    text.includes('DELEGATIONS') || /^[A-Z\s]+\(\d+/.test(text)
+    text.includes('DELEGATIONS') || text.includes('OPEN DELEGATIONS') ||
+    /^[A-Z\s]+\(\d+/.test(text)
   );
 }
 
@@ -87,15 +98,17 @@ export default function ChatView({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const isEmpty = messages.length === 0 && queuedTexts.length === 0;
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, parsing, queuedTexts]);
 
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text) return;
-    setInput("");
-    onSend(text);
+  const handleSend = (text?: string) => {
+    const toSend = text || input.trim();
+    if (!toSend) return;
+    if (!text) setInput("");
+    onSend(toSend);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
@@ -111,6 +124,32 @@ export default function ChatView({
     const el = e.target;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+  };
+
+  const handleStarterClick = (prompt: string) => {
+    if (prompt === "Interview me about a deal") {
+      handleSend("[INTERVIEW MODE] The user wants to be interviewed about a new deal. Ask them ONE question at a time to build a complete deal record. Start with: \"What's the deal? Give me a name and location.\"");
+    } else {
+      handleSend(prompt);
+    }
+  };
+
+  const handleQuickAction = (action: 'status' | 'find' | 'delegations' | 'interview') => {
+    switch (action) {
+      case 'status':
+        handleSend("where do we stand on everything");
+        break;
+      case 'find':
+        setInput("tell me about ");
+        textareaRef.current?.focus();
+        break;
+      case 'delegations':
+        handleSend("show me all open delegations across all deals");
+        break;
+      case 'interview':
+        handleSend("[INTERVIEW MODE] The user wants to be interviewed about a new deal. Ask them ONE question at a time to build a complete deal record. Start with: \"What's the deal? Give me a name and location.\"");
+        break;
+    }
   };
 
   return (
@@ -175,16 +214,33 @@ export default function ChatView({
       {/* Chat Messages */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {messages.length === 0 && queuedTexts.length === 0 && (
+          {isEmpty && (
             <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground text-sm max-w-md text-center leading-relaxed">
-                Start talking. Dump notes, forward emails, ask "where do we stand." I'll parse everything into your deal pipeline.
-              </p>
+              <div className="text-center max-w-lg">
+                <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                  Start talking. Dump notes, forward emails, ask "where do we stand." I'll parse everything into your deal pipeline.
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {STARTER_PROMPTS.map(prompt => (
+                    <button
+                      key={prompt}
+                      onClick={() => handleStarterClick(prompt)}
+                      className="px-3 py-1.5 text-[11px] rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 bg-card transition-colors"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
           {messages.map(msg => {
             const isUser = msg.role === 'user';
             const structured = !isUser && !msg.is_error && isStructuredBlock(msg.text);
+            // Hide the [INTERVIEW MODE] prefix from display
+            const displayText = isUser && msg.text.startsWith('[INTERVIEW MODE]')
+              ? 'Interview me about a deal'
+              : msg.text;
             return (
               <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[75%] ${structured ? 'max-w-[85%]' : ''}`}>
@@ -198,7 +254,7 @@ export default function ChatView({
                     }`}
                   >
                     {isUser ? (
-                      <span className="whitespace-pre-wrap">{msg.text}</span>
+                      <span className="whitespace-pre-wrap">{displayText}</span>
                     ) : (
                       renderFormattedText(msg.text, structured)
                     )}
@@ -210,16 +266,19 @@ export default function ChatView({
               </div>
             );
           })}
-          {queuedTexts.map((qt, i) => (
-            <div key={`queued-${i}`} className="flex justify-end">
-              <div className="max-w-[75%]">
-                <div className="bg-primary/60 text-primary-foreground px-3 py-2 rounded-lg text-sm whitespace-pre-wrap">
-                  {qt}
+          {queuedTexts.map((qt, i) => {
+            const displayText = qt.startsWith('[INTERVIEW MODE]') ? 'Interview me about a deal' : qt;
+            return (
+              <div key={`queued-${i}`} className="flex justify-end">
+                <div className="max-w-[75%]">
+                  <div className="bg-primary/60 text-primary-foreground px-3 py-2 rounded-lg text-sm whitespace-pre-wrap">
+                    {displayText}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 text-right">queued</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5 text-right">queued</p>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {parsing && (
             <div className="flex justify-start">
               <div className="bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2 text-sm text-muted-foreground">
@@ -246,13 +305,60 @@ export default function ChatView({
               className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <Button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!input.trim()}
               size="icon"
               className="h-9 w-9 shrink-0"
             >
               <Send className="h-4 w-4" />
             </Button>
+          </div>
+          {/* Persistent quick actions */}
+          <div className="flex items-center gap-1 mt-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleQuickAction('status')}
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <ClipboardList className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">Pipeline status</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleQuickAction('find')}
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">Find a deal</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleQuickAction('delegations')}
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">Open delegations</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleQuickAction('interview')}
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">Interview mode</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>
