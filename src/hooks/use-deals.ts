@@ -190,12 +190,17 @@ export function useDealChat(
         }
       } else {
         try {
-          await processParsedResult(result, currentDeals, userId!);
+          const { savedCount, totalCount } = await processParsedResult(result, currentDeals, userId!);
           await refetchRef.current();
           let responseText = '';
           if (result.summary) responseText += result.summary;
           if (result.question) responseText += '\n\n' + result.question;
           if (!responseText) responseText = 'Processed.';
+
+          if (totalCount > 0 && savedCount < totalCount) {
+            const failed = totalCount - savedCount;
+            responseText += `\n\n⚠ ${failed} of ${totalCount} deals may not have saved. Check the board.`;
+          }
 
           const possibleNames = countPossibleDealNames(text);
           const returnedDeals = result.deals?.length || 0;

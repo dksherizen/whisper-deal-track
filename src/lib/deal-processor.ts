@@ -63,113 +63,113 @@ export async function processParsedResult(
   result: ParseResult,
   existingDeals: Deal[],
   userId: string
-): Promise<string> {
+): Promise<{ actions: string[]; savedCount: number; totalCount: number }> {
   const actions: string[] = [];
+  let savedCount = 0;
+  const totalCount = result.deals?.length || 0;
 
   if (result.deals) {
     for (const parsedDeal of result.deals) {
-      const existingDeal = matchDeal(parsedDeal, existingDeals);
+      try {
+        const existingDeal = matchDeal(parsedDeal, existingDeals);
 
-      if (parsedDeal.action === 'kill') {
-        if (existingDeal) {
-          await supabase.from('deals').update({ stage: 'dead', updated_at: new Date().toISOString() }).eq('id', existingDeal.id);
-          if (parsedDeal.timelineEntry) {
-            await supabase.from('timeline_entries').insert({
-              deal_id: existingDeal.id,
-              text: parsedDeal.timelineEntry,
-              source: 'ai',
-            });
+        if (parsedDeal.action === 'kill') {
+          if (existingDeal) {
+            const { error } = await supabase.from('deals').update({ stage: 'dead', updated_at: new Date().toISOString() }).eq('id', existingDeal.id);
+            if (error) {
+              console.error(`Failed to kill deal ${parsedDeal.name}:`, error);
+              actions.push(`${parsedDeal.name} — failed to mark dead`);
+              continue;
+            }
+            if (parsedDeal.timelineEntry) {
+              const { error: tlErr } = await supabase.from('timeline_entries').insert({ deal_id: existingDeal.id, text: parsedDeal.timelineEntry, source: 'ai' });
+              if (tlErr) console.error(`Timeline insert failed for ${parsedDeal.name}:`, tlErr);
+            }
+            savedCount++;
+            actions.push(`${parsedDeal.name} — marked DEAD`);
+          } else {
+            actions.push(`⚠ Couldn't find a deal matching "${parsedDeal.name}" to mark as dead.`);
           }
-          actions.push(`${parsedDeal.name} — marked DEAD`);
-        } else {
-          actions.push(`⚠ Couldn't find a deal matching "${parsedDeal.name}" to mark as dead.`);
+          continue;
         }
-        continue;
-      }
 
-      if (existingDeal) {
-        // Update existing deal
+        if (existingDeal) {
+          const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
+          const updatePayload = Object.keys(fields).length > 0
+            ? { ...fields, updated_at: new Date().toISOString() }
+            : { updated_at: new Date().toISOString() };
+          const { error } = await supabase.from('deals').update(updatePayload).eq('id', existingDeal.id);
+          if (error) {
+            console.error(`Failed to update deal ${parsedDeal.name}:`, error);
+            actions.push(`${parsedDeal.name} — failed to update`);
+            continue;
+          }
+
+          if (parsedDeal.timelineEntry) {
+            const { error: tlErr } = await supabase.from('timeline_entries').insert({ deal_id: existingDeal.id, text: parsedDeal.timelineEntry, source: 'ai' });
+            if (tlErr) console.error(`Timeline insert failed for ${parsedDeal.name}:`, tlErr);
+          }
+          if (parsedDeal.delegations?.length) {
+            for (const del of parsedDeal.delegations) {
+              const { error: delErr } = await supabase.from('delegations').insert({ deal_id: existingDeal.id, assignee: del.assignee, task: del.task });
+              if (delErr) console.error(`Delegation insert failed for ${parsedDeal.name}:`, delErr);
+            }
+          }
+          savedCount++;
+          actions.push(`${parsedDeal.name} — updated`);
+          continue;
+        }
+
+        // Create new deal
         const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
-        if (Object.keys(fields).length > 0) {
-          await supabase.from('deals').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', existingDeal.id);
-        } else {
-          await supabase.from('deals').update({ updated_at: new Date().toISOString() }).eq('id', existingDeal.id);
+        const { data: newDeal, error } = await supabase
+          .from('deals')
+          .insert({ name: parsedDeal.name, ...fields, user_id: userId })
+          .select()
+          .single();
+
+        if (error || !newDeal) {
+          console.error(`Failed to create deal ${parsedDeal.name}:`, error);
+          actions.push(`${parsedDeal.name} — failed to create`);
+          continue;
         }
 
         if (parsedDeal.timelineEntry) {
-          await supabase.from('timeline_entries').insert({
-            deal_id: existingDeal.id,
-            text: parsedDeal.timelineEntry,
-            source: 'ai',
-          });
+          const { error: tlErr } = await supabase.from('timeline_entries').insert({ deal_id: newDeal.id, text: parsedDeal.timelineEntry, source: 'ai' });
+          if (tlErr) console.error(`Timeline insert failed for ${parsedDeal.name}:`, tlErr);
         }
-
         if (parsedDeal.delegations?.length) {
           for (const del of parsedDeal.delegations) {
-            await supabase.from('delegations').insert({
-              deal_id: existingDeal.id,
-              assignee: del.assignee,
-              task: del.task,
-            });
+            const { error: delErr } = await supabase.from('delegations').insert({ deal_id: newDeal.id, assignee: del.assignee, task: del.task });
+            if (delErr) console.error(`Delegation insert failed for ${parsedDeal.name}:`, delErr);
           }
         }
-
-        actions.push(`${parsedDeal.name} — updated`);
-        continue;
+        savedCount++;
+        actions.push(`${parsedDeal.name} — new deal`);
+      } catch (err) {
+        console.error(`Unexpected error processing deal ${parsedDeal.name}:`, err);
+        actions.push(`${parsedDeal.name} — error processing`);
       }
-
-      // Create new deal (or update action with no match)
-      const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
-      const { data: newDeal, error } = await supabase
-        .from('deals')
-        .insert({ name: parsedDeal.name, ...fields, user_id: userId })
-        .select()
-        .single();
-
-      if (error || !newDeal) {
-        console.error('Failed to create deal:', error);
-        actions.push(`${parsedDeal.name} — failed to create`);
-        continue;
-      }
-
-      if (parsedDeal.timelineEntry) {
-        await supabase.from('timeline_entries').insert({
-          deal_id: newDeal.id,
-          text: parsedDeal.timelineEntry,
-          source: 'ai',
-        });
-      }
-
-      if (parsedDeal.delegations?.length) {
-        for (const del of parsedDeal.delegations) {
-          await supabase.from('delegations').insert({
-            deal_id: newDeal.id,
-            assignee: del.assignee,
-            task: del.task,
-          });
-        }
-      }
-
-      actions.push(`${parsedDeal.name} — new deal`);
     }
   }
 
   if (result.contacts?.length) {
     for (const contact of result.contacts) {
       if (contact.name) {
-        await supabase.from('contacts').insert({
+        const { error } = await supabase.from('contacts').insert({
           name: contact.name,
           company: contact.company || null,
           role: contact.role || null,
           notes: contact.notes || null,
           user_id: userId,
         });
-        actions.push(`Contact: ${contact.name}`);
+        if (error) console.error(`Failed to save contact ${contact.name}:`, error);
+        else actions.push(`Contact: ${contact.name}`);
       }
     }
   }
 
-  return actions.join('\n');
+  return { actions, savedCount, totalCount };
 }
 
 export function buildStatusResponse(deals: Deal[]): string {
