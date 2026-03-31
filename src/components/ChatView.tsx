@@ -7,9 +7,11 @@ interface ChatViewProps {
   messages: Message[];
   parsing: boolean;
   onSend: (text: string) => void;
+  queuedTexts: string[];
+  queueCount: number;
 }
 
-export default function ChatView({ messages, parsing, onSend }: ChatViewProps) {
+export default function ChatView({ messages, parsing, onSend, queuedTexts, queueCount }: ChatViewProps) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
