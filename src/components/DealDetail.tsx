@@ -344,7 +344,7 @@ export default function DealDetail({ deal, onBack, onUpdate, onChatAction }: Dea
           </div>
 
           {/* Timeline */}
-          <div>
+          <div id="timeline-section">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Timeline</h3>
             <div className="space-y-2.5">
               {timeline.length === 0 && (
