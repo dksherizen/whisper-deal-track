@@ -26,6 +26,8 @@ interface ChatViewProps {
   onSelectChat: (chatId: string) => void;
   onNewChat: () => void;
   onDeleteChat: (chatId: string) => void;
+  pendingInput?: string | null;
+  onPendingInputConsumed?: () => void;
 }
 
 const STARTER_PROMPTS = [
