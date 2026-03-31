@@ -14,7 +14,259 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contacts: {
+        Row: {
+          added_at: string
+          company: string | null
+          id: string
+          name: string
+          notes: string | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          company?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          company?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      deals: {
+        Row: {
+          aliases: string | null
+          asking_price: number | null
+          beds: number | null
+          broker: string | null
+          broker_firm: string | null
+          condition: string | null
+          country: string | null
+          cqc_rating: string | null
+          created_at: string
+          currency: string | null
+          ebitda: number | null
+          ebitdar: number | null
+          id: string
+          internal_lead: string | null
+          key_contact: string | null
+          landlord: string | null
+          name: string
+          next_step: string | null
+          next_step_date: string | null
+          next_step_owner: string | null
+          notes: string | null
+          occupancy: number | null
+          operator: string | null
+          partner: string | null
+          property_type: string | null
+          region: string | null
+          regulatory_notes: string | null
+          rent_coverage: number | null
+          revenue: number | null
+          risks: string | null
+          seller: string | null
+          solicitor_buyer: string | null
+          solicitor_seller: string | null
+          stage: string
+          tenure: string | null
+          type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aliases?: string | null
+          asking_price?: number | null
+          beds?: number | null
+          broker?: string | null
+          broker_firm?: string | null
+          condition?: string | null
+          country?: string | null
+          cqc_rating?: string | null
+          created_at?: string
+          currency?: string | null
+          ebitda?: number | null
+          ebitdar?: number | null
+          id?: string
+          internal_lead?: string | null
+          key_contact?: string | null
+          landlord?: string | null
+          name: string
+          next_step?: string | null
+          next_step_date?: string | null
+          next_step_owner?: string | null
+          notes?: string | null
+          occupancy?: number | null
+          operator?: string | null
+          partner?: string | null
+          property_type?: string | null
+          region?: string | null
+          regulatory_notes?: string | null
+          rent_coverage?: number | null
+          revenue?: number | null
+          risks?: string | null
+          seller?: string | null
+          solicitor_buyer?: string | null
+          solicitor_seller?: string | null
+          stage?: string
+          tenure?: string | null
+          type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aliases?: string | null
+          asking_price?: number | null
+          beds?: number | null
+          broker?: string | null
+          broker_firm?: string | null
+          condition?: string | null
+          country?: string | null
+          cqc_rating?: string | null
+          created_at?: string
+          currency?: string | null
+          ebitda?: number | null
+          ebitdar?: number | null
+          id?: string
+          internal_lead?: string | null
+          key_contact?: string | null
+          landlord?: string | null
+          name?: string
+          next_step?: string | null
+          next_step_date?: string | null
+          next_step_owner?: string | null
+          notes?: string | null
+          occupancy?: number | null
+          operator?: string | null
+          partner?: string | null
+          property_type?: string | null
+          region?: string | null
+          regulatory_notes?: string | null
+          rent_coverage?: number | null
+          revenue?: number | null
+          risks?: string | null
+          seller?: string | null
+          solicitor_buyer?: string | null
+          solicitor_seller?: string | null
+          stage?: string
+          tenure?: string | null
+          type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      delegations: {
+        Row: {
+          assignee: string
+          created_at: string
+          date: string
+          deal_id: string
+          done: boolean
+          id: string
+          task: string
+        }
+        Insert: {
+          assignee: string
+          created_at?: string
+          date?: string
+          deal_id: string
+          done?: boolean
+          id?: string
+          task: string
+        }
+        Update: {
+          assignee?: string
+          created_at?: string
+          date?: string
+          deal_id?: string
+          done?: boolean
+          id?: string
+          task?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_error: boolean
+          role: string
+          text: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_error?: boolean
+          role: string
+          text: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_error?: boolean
+          role?: string
+          text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      timeline_entries: {
+        Row: {
+          created_at: string
+          date: string
+          deal_id: string
+          id: string
+          source: string | null
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          deal_id: string
+          id?: string
+          source?: string | null
+          text: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          deal_id?: string
+          id?: string
+          source?: string | null
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
