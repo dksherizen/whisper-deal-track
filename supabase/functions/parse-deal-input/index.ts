@@ -150,11 +150,8 @@ serve(async (req) => {
       const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      console.error("Failed to parse AI response:", text);
-      return new Response(
-        JSON.stringify({ error: "Failed to parse AI response", raw: text }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Not JSON — could be interview mode plain text response
+      parsed = { text: text };
     }
 
     return new Response(JSON.stringify(parsed), {

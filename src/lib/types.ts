@@ -108,6 +108,7 @@ export interface ParseResult {
   contacts?: ParsedContact[];
   summary?: string;
   question?: string | null;
-  command?: 'status' | 'query';
+  command?: 'status' | 'query' | 'delegations';
   dealName?: string;
+  text?: string; // For interview mode plain text responses
 }
