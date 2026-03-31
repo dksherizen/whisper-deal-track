@@ -92,7 +92,7 @@ export function useDealChat(
       const recent = messagesRef.current.filter(m => !m.is_error).slice(-6).map(m => ({ role: m.role, text: m.text }));
 
       const { data, error } = await supabase.functions.invoke('parse-deal-input', {
-        body: { message: text, existingDeals, recentMessages: last5 },
+        body: { message: text, existingDeals, recentMessages: recent },
       });
       if (error) throw error;
 
