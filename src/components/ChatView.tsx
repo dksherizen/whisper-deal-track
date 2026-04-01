@@ -37,7 +37,7 @@ const STARTER_PROMPTS = [
   "Update on an existing deal",
   "Where do we stand on everything",
   "Interview me about a deal",
-  "Forward an email",
+  
   "Who was supposed to do what",
 ];
 
