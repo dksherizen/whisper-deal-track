@@ -16,7 +16,7 @@ interface BoardViewProps {
   search: string;
   onSelectDeal: (deal: Deal) => void;
   onEditDeal?: (deal: Deal) => void;
-  onNewDeal?: (stage?: string) => void;
+  onNewDeal?: () => void;
   onRefetch?: () => void;
 }
 
