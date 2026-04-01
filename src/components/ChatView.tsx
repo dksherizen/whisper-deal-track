@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import type { Message, Chat } from "@/lib/types";
-import { Loader2, Send, Plus, Trash2, MessageSquare, ClipboardList, Search, CheckSquare, MessageCircle } from "lucide-react";
+import { Loader2, Send, Plus, Trash2, MessageSquare, ClipboardList, Search, CheckSquare, MessageCircle, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -28,6 +28,8 @@ interface ChatViewProps {
   onDeleteChat: (chatId: string) => void;
   pendingInput?: string | null;
   onPendingInputConsumed?: () => void;
+  onViewBoard?: () => void;
+  activeDealsCount?: number;
 }
 
 const STARTER_PROMPTS = [
@@ -68,6 +70,89 @@ function isStructuredBlock(text: string): boolean {
   );
 }
 
+// Detect deal confirmation lines like "CHELTENHAM — updated" or "DEAL NAME — new deal"
+const DEAL_LINE_PATTERN = /^(.+?)\s*[—–-]\s*(new deal|updated|marked DEAD|failed.*)$/;
+// Detect question block (usually last paragraph that ends with ?)
+function splitConfirmationAndQuestion(text: string): { body: string; question: string | null } {
+  const lines = text.split('\n');
+  // Find the last non-empty line
+  const lastNonEmpty = [...lines].reverse().find(l => l.trim().length > 0);
+  if (lastNonEmpty && lastNonEmpty.trim().endsWith('?')) {
+    // Walk backwards to find the start of the question block
+    const lastIdx = lines.lastIndexOf(lastNonEmpty);
+    let qStart = lastIdx;
+    // Include preceding blank line separation
+    while (qStart > 0 && lines[qStart - 1].trim() === '') qStart--;
+    // The question is everything from the blank line separator onwards
+    const bodyLines = lines.slice(0, qStart);
+    const questionLines = lines.slice(qStart).filter(l => l.trim().length > 0);
+    return {
+      body: bodyLines.join('\n'),
+      question: questionLines.join('\n'),
+    };
+  }
+  return { body: text, question: null };
+}
+
+function isDealConfirmationMessage(text: string): boolean {
+  const lines = text.split('\n').filter(l => l.trim().length > 0);
+  return lines.some(l => DEAL_LINE_PATTERN.test(l.trim()));
+}
+
+function renderDealConfirmation(text: string, onViewBoard?: () => void) {
+  const { body, question } = splitConfirmationAndQuestion(text);
+  const bodyLines = body.split('\n');
+
+  return (
+    <div className="space-y-1">
+      {bodyLines.map((line, i) => {
+        const trimmed = line.trim();
+        if (trimmed === '') return <div key={i} className="h-1.5" />;
+        const match = trimmed.match(DEAL_LINE_PATTERN);
+        if (match) {
+          const [, dealName, action] = match;
+          const actionColor = action.includes('DEAD') ? 'text-destructive'
+            : action.includes('failed') ? 'text-destructive'
+            : action === 'new deal' ? 'text-green-600'
+            : 'text-muted-foreground';
+          return (
+            <div key={i} className="flex items-baseline gap-1.5">
+              <span className="font-semibold text-foreground">{dealName}</span>
+              <span className={`text-xs ${actionColor}`}>— {action}</span>
+            </div>
+          );
+        }
+        // Regular text lines
+        const parts = line.split(/(\*\*[^*]+\*\*)/g);
+        return (
+          <div key={i} className="text-sm">
+            {parts.map((part, j) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return <span key={j} className="font-bold">{part.slice(2, -2)}</span>;
+              }
+              return <span key={j}>{part}</span>;
+            })}
+          </div>
+        );
+      })}
+      {question && (
+        <div className="mt-2 border-l-2 border-primary/30 pl-3 py-1">
+          <p className="text-sm italic text-muted-foreground">{question}</p>
+        </div>
+      )}
+      {onViewBoard && (
+        <button
+          onClick={onViewBoard}
+          className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors"
+        >
+          <LayoutGrid className="h-3 w-3" />
+          View on Board
+        </button>
+      )}
+    </div>
+  );
+}
+
 function renderFormattedText(text: string, structured: boolean) {
   const lines = text.split('\n');
   return (
@@ -95,7 +180,7 @@ function renderFormattedText(text: string, structured: boolean) {
 export default function ChatView({
   messages, parsing, onSend, queuedTexts, queueCount,
   chats, currentChatId, onSelectChat, onNewChat, onDeleteChat,
-  pendingInput, onPendingInputConsumed,
+  pendingInput, onPendingInputConsumed, onViewBoard, activeDealsCount,
 }: ChatViewProps) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -107,7 +192,6 @@ export default function ChatView({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, parsing, queuedTexts]);
 
-  // Handle pending input from deal detail actions
   useEffect(() => {
     if (pendingInput) {
       setInput(pendingInput);
@@ -229,9 +313,14 @@ export default function ChatView({
           {isEmpty && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-lg">
-                <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                <p className="text-muted-foreground text-sm leading-relaxed mb-4">
                   Start talking. Dump notes, forward emails, ask "where do we stand." I'll parse everything into your deal pipeline.
                 </p>
+                {activeDealsCount != null && activeDealsCount > 0 && (
+                  <p className="text-xs text-muted-foreground/70 mb-5">
+                    You have <span className="font-semibold text-foreground">{activeDealsCount}</span> active deal{activeDealsCount !== 1 ? 's' : ''} in your pipeline
+                  </p>
+                )}
                 <div className="flex flex-wrap justify-center gap-2">
                   {STARTER_PROMPTS.map(prompt => (
                     <button
@@ -249,7 +338,7 @@ export default function ChatView({
           {messages.map(msg => {
             const isUser = msg.role === 'user';
             const structured = !isUser && !msg.is_error && isStructuredBlock(msg.text);
-            // Hide the [INTERVIEW MODE] prefix from display
+            const isDealConfirm = !isUser && !msg.is_error && !structured && isDealConfirmationMessage(msg.text);
             const displayText = isUser && msg.text.startsWith('[INTERVIEW MODE]')
               ? 'Interview me about a deal'
               : msg.text;
@@ -267,6 +356,8 @@ export default function ChatView({
                   >
                     {isUser ? (
                       <span className="whitespace-pre-wrap">{displayText}</span>
+                    ) : isDealConfirm ? (
+                      renderDealConfirmation(msg.text, onViewBoard)
                     ) : (
                       renderFormattedText(msg.text, structured)
                     )}
