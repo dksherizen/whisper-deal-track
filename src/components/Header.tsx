@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { Deal } from "@/lib/types";
 import { formatCurrency } from "@/lib/constants";
-import { Search, Settings, Trash2, Plus } from "lucide-react";
+import { Search, Settings, Trash2, Plus, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,9 +24,10 @@ interface HeaderProps {
   onSignOut: () => void;
   onNewDeal?: () => void;
   onInsertTestDeal?: () => void;
+  onExport?: () => void;
 }
 
-export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut, onNewDeal, onInsertTestDeal }: HeaderProps) {
+export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut, onNewDeal, onInsertTestDeal, onExport }: HeaderProps) {
   const stats = useMemo(() => {
     const active = deals.filter(d => !['completed', 'on_hold', 'dead'].includes(d.stage));
     const totalBeds = active.reduce((sum, d) => sum + (d.beds || 0), 0);
@@ -61,6 +62,12 @@ export default function Header({ deals, view, setView, search, setSearch, onDele
       {onNewDeal && (
         <Button variant="outline" size="sm" onClick={onNewDeal} className="h-7 text-xs gap-1">
           <Plus className="h-3 w-3" /> New Deal
+        </Button>
+      )}
+
+      {onExport && (
+        <Button variant="outline" size="sm" onClick={onExport} className="h-7 text-xs gap-1">
+          <Download className="h-3 w-3" /> Export
         </Button>
       )}
 
@@ -123,6 +130,12 @@ export default function Header({ deals, view, setView, search, setSearch, onDele
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          {onExport && (
+            <DropdownMenuItem onClick={onExport} className="text-xs gap-2">
+              <Download className="h-3 w-3" />
+              Export Pipeline
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onSignOut} className="text-xs">Sign Out</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
