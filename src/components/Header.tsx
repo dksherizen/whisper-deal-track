@@ -65,6 +65,12 @@ export default function Header({ deals, view, setView, search, setSearch, onDele
         </Button>
       )}
 
+      {onExport && (
+        <Button variant="outline" size="sm" onClick={onExport} className="h-7 text-xs gap-1">
+          <Download className="h-3 w-3" /> Export
+        </Button>
+      )}
+
       <div className="flex items-center bg-secondary rounded-md p-0.5 gap-0.5">
         {(['chat', 'board', 'list'] as const).map(v => (
           <button
