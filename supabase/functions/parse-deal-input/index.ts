@@ -132,13 +132,13 @@ serve(async (req) => {
         "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "anthropic/claude-sonnet-4",
+        model: "anthropic/claude-opus-4",
         temperature: 0,
         messages: [
           { role: "system", content: SYSTEM_PROMPT + dealsContext },
           ...conversationMessages,
         ],
-        max_tokens: 4096,
+        max_tokens: 8000,
       }),
     });
 
