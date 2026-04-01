@@ -42,6 +42,11 @@ function normalizeNumericValue(value: unknown): number | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
+  // Try direct conversion first — handles plain numeric strings like "2800000"
+  const direct = Number(trimmed);
+  if (Number.isFinite(direct)) return direct;
+
+  // Strip currency symbols and commas, then check for letters (e.g. "2.8M")
   const normalized = trimmed.replace(/[£$,\s%]/g, '').replace(/,/g, '');
   if (!normalized || /[a-z]/i.test(normalized)) return null;
 
@@ -136,6 +141,7 @@ export async function processParsedResult(
   existingDeals: Deal[],
   userId: string
 ): Promise<{ actions: string[]; savedCount: number; totalCount: number }> {
+  console.log('[deal-processor] Full ParseResult from AI:', JSON.stringify(result, null, 2));
   const actions: string[] = [];
   let savedCount = 0;
   const totalCount = result.deals?.length || 0;
@@ -143,6 +149,7 @@ export async function processParsedResult(
   if (result.deals) {
     for (const parsedDeal of result.deals) {
       try {
+        console.log(`[deal-processor] Processing deal "${parsedDeal.name}":`, { rawFields: parsedDeal.fields, action: parsedDeal.action });
         const existingDeal = matchDeal(parsedDeal, existingDeals);
 
         if (parsedDeal.action === 'kill') {
@@ -167,10 +174,11 @@ export async function processParsedResult(
 
         if (existingDeal) {
           const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
+          console.log(`[deal-processor] "${parsedDeal.name}" mapped fields:`, fields);
           const updatePayload = sanitizeDealPayload(Object.keys(fields).length > 0
             ? { ...fields, updated_at: new Date().toISOString() }
             : { updated_at: new Date().toISOString() }, parsedDeal.name);
-          console.log(`Attempting to update deal "${parsedDeal.name}"`, { dealId: existingDeal.id, payload: updatePayload });
+          console.log(`[deal-processor] "${parsedDeal.name}" sanitized update payload:`, updatePayload);
           const { error } = await supabase.from('deals').update(updatePayload).eq('id', existingDeal.id);
           if (error) {
             console.error(`Failed to update deal ${parsedDeal.name}:`, error);
@@ -196,8 +204,9 @@ export async function processParsedResult(
 
         // Create new deal
         const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
+        console.log(`[deal-processor] "${parsedDeal.name}" mapped fields:`, fields);
         const insertPayload = sanitizeDealPayload({ name: parsedDeal.name, ...fields, user_id: userId }, parsedDeal.name);
-        console.log(`Attempting to insert deal "${parsedDeal.name}"`, insertPayload);
+        console.log(`[deal-processor] "${parsedDeal.name}" sanitized insert payload:`, insertPayload);
         const { data: newDeal, error } = await supabase
           .from('deals')
           .insert(insertPayload as any)
