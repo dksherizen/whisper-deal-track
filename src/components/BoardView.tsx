@@ -189,7 +189,7 @@ export default function BoardView({ deals, search, onSelectDeal, onEditDeal, onN
                 </div>
                 {onNewDeal && (
                   <button
-                    onClick={() => onNewDeal(stage.key)}
+                    onClick={() => onNewDeal()}
                     className="flex items-center justify-center gap-1 mt-1.5 py-1.5 text-2xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded transition-colors"
                   >
                     <Plus className="h-3 w-3" /> Add
