@@ -42,6 +42,11 @@ function normalizeNumericValue(value: unknown): number | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
+  // Try direct conversion first — handles plain numeric strings like "2800000"
+  const direct = Number(trimmed);
+  if (Number.isFinite(direct)) return direct;
+
+  // Strip currency symbols and commas, then check for letters (e.g. "2.8M")
   const normalized = trimmed.replace(/[£$,\s%]/g, '').replace(/,/g, '');
   if (!normalized || /[a-z]/i.test(normalized)) return null;
 
