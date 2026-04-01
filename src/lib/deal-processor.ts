@@ -141,6 +141,7 @@ export async function processParsedResult(
   existingDeals: Deal[],
   userId: string
 ): Promise<{ actions: string[]; savedCount: number; totalCount: number }> {
+  console.log('[deal-processor] Full ParseResult from AI:', JSON.stringify(result, null, 2));
   const actions: string[] = [];
   let savedCount = 0;
   const totalCount = result.deals?.length || 0;
