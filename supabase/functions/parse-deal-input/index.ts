@@ -36,7 +36,7 @@ For ALL OTHER messages, return a JSON object with this exact structure:
         "operator": "",
         "landlord": "",
         "askingPrice": null,
-        "currency": "GBP" | "USD",
+        "currency": "GBP" | "USD" | "EUR",
         "revenue": null,
         "ebitda": null,
         "ebitdar": null,
