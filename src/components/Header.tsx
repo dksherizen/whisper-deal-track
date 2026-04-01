@@ -24,6 +24,7 @@ interface HeaderProps {
   onSignOut: () => void;
   onNewDeal?: () => void;
   onInsertTestDeal?: () => void;
+  onExport?: () => void;
 }
 
 export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut, onNewDeal, onInsertTestDeal }: HeaderProps) {
