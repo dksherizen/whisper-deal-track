@@ -71,6 +71,11 @@ export default function Index() {
     await refetchDeals();
   };
 
+  const handleExport = async () => {
+    if (!userId) return;
+    await exportPipeline(userId);
+  };
+
   const handleDeleteChat = async (chatId: string) => {
     await deleteChat(chatId);
     if (currentChatId === chatId) {
