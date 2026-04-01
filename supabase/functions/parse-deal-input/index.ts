@@ -127,7 +127,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "anthropic/claude-sonnet-4-20250514",
+        model: "anthropic/claude-sonnet-4",
         temperature: 0,
         messages: [
           { role: "system", content: SYSTEM_PROMPT + dealsContext },
