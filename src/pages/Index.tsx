@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useDeals, useMessages, useDealChat, useChats } from "@/hooks/use-deals";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ type ViewMode = 'chat' | 'board' | 'list';
 export default function Index() {
   const { session, loading: authLoading, signIn, signUp, signOut, userId } = useAuth();
   const { deals, loading: dealsLoading, refetchDeals } = useDeals(userId);
-  const { chats, loading: chatsLoading, createChat, deleteChat, updateChatTitle, fetchChats } = useChats(userId);
+  const { chats, loading: chatsLoading, initialChatId, createChat, deleteChat, updateChatTitle, fetchChats } = useChats(userId);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const { messages, loading: msgsLoading, addMessage } = useMessages(userId, currentChatId);
   const { enqueue, parsing, queuedTexts, queueCount } = useDealChat(userId, deals, refetchDeals, addMessage, messages);
@@ -26,22 +26,12 @@ export default function Index() {
   const [pendingChatInput, setPendingChatInput] = useState<string | null>(null);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
 
-  const creatingChatRef = useRef(false);
-
+  // Set current chat from hook's initialChatId once available
   useEffect(() => {
-    if (!userId || chatsLoading) return;
-    if (chats.length > 0 && !currentChatId) {
-      setCurrentChatId(chats[0].id);
-    } else if (chats.length === 0 && !currentChatId && !creatingChatRef.current) {
-      creatingChatRef.current = true;
-      createChat('New Chat').then(chat => {
-        if (chat) setCurrentChatId(chat.id);
-        creatingChatRef.current = false;
-      }).catch(() => {
-        creatingChatRef.current = false;
-      });
+    if (initialChatId && !currentChatId) {
+      setCurrentChatId(initialChatId);
     }
-  }, [userId, chats, chatsLoading, currentChatId]);
+  }, [initialChatId]);
 
   if (authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground text-sm">Loading...</div>;
