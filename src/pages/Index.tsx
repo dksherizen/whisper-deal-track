@@ -193,6 +193,8 @@ export default function Index() {
             onDeleteChat={handleDeleteChat}
             pendingInput={pendingChatInput}
             onPendingInputConsumed={() => setPendingChatInput(null)}
+            onViewBoard={() => setView('board')}
+            activeDealsCount={deals.filter(d => !['completed', 'on_hold', 'dead'].includes(d.stage)).length}
           />
         )}
         {view === 'board' && (
