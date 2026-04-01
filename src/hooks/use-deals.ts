@@ -28,6 +28,44 @@ export function useDeals(userId: string | null) {
 export function useChats(userId: string | null) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialChatId, setInitialChatId] = useState<string | null>(null);
+  const didInit = useRef(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    if (didInit.current) return;
+    didInit.current = true;
+
+    const init = async () => {
+      const { data } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false });
+      const fetched = (data as Chat[]) || [];
+
+      if (fetched.length > 0) {
+        setChats(fetched);
+        setInitialChatId(fetched[0].id);
+      } else {
+        // Auto-create first chat
+        const { data: newChat, error } = await supabase
+          .from('chats')
+          .insert({ title: 'New Chat', user_id: userId })
+          .select()
+          .single();
+        if (error) {
+          console.error('Failed to auto-create chat:', error);
+        } else if (newChat) {
+          const chat = newChat as Chat;
+          setChats([chat]);
+          setInitialChatId(chat.id);
+        }
+      }
+      setLoading(false);
+    };
+    init();
+  }, [userId]);
 
   const fetchChats = useCallback(async () => {
     if (!userId) return;
@@ -37,12 +75,7 @@ export function useChats(userId: string | null) {
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
     setChats((data as Chat[]) || []);
-    setLoading(false);
   }, [userId]);
-
-  useEffect(() => {
-    fetchChats();
-  }, [fetchChats]);
 
   const createChat = async (title = 'New Chat') => {
     if (!userId) return null;
@@ -70,7 +103,7 @@ export function useChats(userId: string | null) {
     setChats(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
   };
 
-  return { chats, loading, fetchChats, createChat, deleteChat, updateChatTitle };
+  return { chats, loading, initialChatId, fetchChats, createChat, deleteChat, updateChatTitle };
 }
 
 export function useMessages(userId: string | null, chatId: string | null) {
