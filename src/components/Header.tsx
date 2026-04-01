@@ -27,7 +27,7 @@ interface HeaderProps {
   onExport?: () => void;
 }
 
-export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut, onNewDeal, onInsertTestDeal }: HeaderProps) {
+export default function Header({ deals, view, setView, search, setSearch, onDeleteAllDeals, onSignOut, onNewDeal, onInsertTestDeal, onExport }: HeaderProps) {
   const stats = useMemo(() => {
     const active = deals.filter(d => !['completed', 'on_hold', 'dead'].includes(d.stage));
     const totalBeds = active.reduce((sum, d) => sum + (d.beds || 0), 0);
