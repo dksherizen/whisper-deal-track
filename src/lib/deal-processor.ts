@@ -174,10 +174,11 @@ export async function processParsedResult(
 
         if (existingDeal) {
           const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
+          console.log(`[deal-processor] "${parsedDeal.name}" mapped fields:`, fields);
           const updatePayload = sanitizeDealPayload(Object.keys(fields).length > 0
             ? { ...fields, updated_at: new Date().toISOString() }
             : { updated_at: new Date().toISOString() }, parsedDeal.name);
-          console.log(`Attempting to update deal "${parsedDeal.name}"`, { dealId: existingDeal.id, payload: updatePayload });
+          console.log(`[deal-processor] "${parsedDeal.name}" sanitized update payload:`, updatePayload);
           const { error } = await supabase.from('deals').update(updatePayload).eq('id', existingDeal.id);
           if (error) {
             console.error(`Failed to update deal ${parsedDeal.name}:`, error);
