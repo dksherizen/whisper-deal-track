@@ -30,7 +30,7 @@ const FIELD_GROUPS = [
       { key: 'name', label: 'Name', type: 'text' },
       { key: 'aliases', label: 'Aliases', type: 'text' },
       { key: 'type', label: 'Type', type: 'select', options: ['single', 'portfolio', 'platform', 'jv'] },
-      { key: 'country', label: 'Country', type: 'select', options: ['UK', 'US', 'Other'] },
+      { key: 'country', label: 'Country', type: 'text' },
       { key: 'region', label: 'Region', type: 'text' },
     ],
   },
