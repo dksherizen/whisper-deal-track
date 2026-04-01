@@ -130,6 +130,12 @@ export default function Header({ deals, view, setView, search, setSearch, onDele
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          {onExport && (
+            <DropdownMenuItem onClick={onExport} className="text-xs gap-2">
+              <Download className="h-3 w-3" />
+              Export Pipeline
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onSignOut} className="text-xs">Sign Out</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
