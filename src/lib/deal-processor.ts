@@ -204,8 +204,9 @@ export async function processParsedResult(
 
         // Create new deal
         const fields = parsedDeal.fields ? mapFields(parsedDeal.fields) : {};
+        console.log(`[deal-processor] "${parsedDeal.name}" mapped fields:`, fields);
         const insertPayload = sanitizeDealPayload({ name: parsedDeal.name, ...fields, user_id: userId }, parsedDeal.name);
-        console.log(`Attempting to insert deal "${parsedDeal.name}"`, insertPayload);
+        console.log(`[deal-processor] "${parsedDeal.name}" sanitized insert payload:`, insertPayload);
         const { data: newDeal, error } = await supabase
           .from('deals')
           .insert(insertPayload as any)
