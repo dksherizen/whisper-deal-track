@@ -180,6 +180,7 @@ export default function Index() {
         onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
         onNewDeal={handleNewDeal}
         onInsertTestDeal={handleInsertTestDeal}
+        onExport={handleExport}
       />
       <div className="flex-1 overflow-hidden">
         {view === 'chat' && (
