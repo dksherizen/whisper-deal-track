@@ -86,11 +86,13 @@ CRITICAL RULES:
 5. If someone is told to do something ("tell Shimon to..."), that's a delegation with assignee and task.
 6. Contacts are people mentioned who serve a cross-deal or non-deal-specific role (lenders, advisors, etc).
 7. Numbers: strip currency symbols. "4.5m euros" = 4500000 with currency EUR. "£2.8M" = 2800000 with currency GBP. "86%" = 86. "5 homes" is NOT beds — only count beds if explicitly stated as beds.
-8. Stage inference: heard about it = identified. IM received / reviewing = initial_review. Active talks / meetings / solicitors mentioned = engaged. SPA in motion = legal_closing.
+8. Stage inference: heard about it = identified. IM received / reviewing = initial_review. Active talks / meetings / solicitors mentioned = engaged. SPA in motion = legal_closing. If a solicitor is mentioned as engaged or wanting to discuss terms, the deal should be at least 'engaged'. If the user mentions going through an IM or doing analysis, that's 'initial_review' not 'identified'.
 9. The summary must be shorter than the input. No advice. No filler. Don't start with "Got it".
 10. If the user asks for prioritization or ranking, include that analysis in the summary field as a brief ranked list, and set question to null.
 11. EBITDAR values go in the ebitdar field as raw numbers. "EBITDAR of 2.2m" = 2200000.
 12. When the input mentions a number of homes/properties in a portfolio (e.g. "five homes"), put that in the notes field, NOT in beds. Only use beds for actual bed counts.
+13. Always populate the country and region fields if you can infer them. UK deals should have country 'UK'. Harrogate is in Yorkshire, UK. Cheltenham is in Gloucestershire, UK. Northumberland is in Northumberland, UK.
+14. If a delegation is created for a deal, also set the nextStep field to the most important pending action, and nextStepOwner to whoever is responsible if known. The delegation tracks the task; nextStep tracks what the deal is waiting on.
 
 RESPOND WITH ONLY THE JSON OBJECT. NO MARKDOWN. NO BACKTICKS. NO PREAMBLE.`;
 

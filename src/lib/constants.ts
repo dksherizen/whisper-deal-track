@@ -27,7 +27,7 @@ export function getStageColor(key: string): string {
 
 export function formatCurrency(amount: number | null, currency: string = 'GBP'): string {
   if (amount == null) return '—';
-  const sym = currency === 'GBP' ? '£' : '$';
+  const sym = currency === 'EUR' ? '€' : currency === 'USD' ? '$' : '£';
   if (amount >= 1_000_000) return `${sym}${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `${sym}${(amount / 1_000).toFixed(0)}K`;
   return `${sym}${amount}`;
