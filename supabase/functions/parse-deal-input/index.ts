@@ -138,23 +138,24 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenRouter API error:", response.status, errorText);
+      const errorBody = await response.text();
+      console.error("OpenRouter API error:", response.status, "headers:", Object.fromEntries(response.headers.entries()), "body:", errorBody);
       return new Response(
-        JSON.stringify({ error: `AI API error: ${response.status}` }),
+        JSON.stringify({ error: `AI API error: ${response.status}`, detail: errorBody }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "";
+    console.log("Raw AI response text:", text.slice(0, 2000));
     
     let parsed;
     try {
       const cleaned = text.replace(/```json\n?|```\n?/g, "").trim();
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      // Not JSON — could be interview mode plain text response
+      console.log("JSON parse failed, treating as plain text. Error:", (e as Error).message);
       parsed = { text: text };
     }
 
