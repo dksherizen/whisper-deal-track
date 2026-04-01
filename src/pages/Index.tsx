@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDeals, useMessages, useDealChat, useChats } from "@/hooks/use-deals";
 import { supabase } from "@/integrations/supabase/client";
 import type { Deal } from "@/lib/types";
+import { exportPipeline } from "@/lib/export-pipeline";
 import AuthPage from "@/components/AuthPage";
 import Header from "@/components/Header";
 import ChatView from "@/components/ChatView";
