@@ -1,0 +1,1 @@
+ALTER TABLE public.deals DROP CONSTRAINT deals_country_check;
