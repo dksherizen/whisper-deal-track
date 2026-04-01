@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import type { Deal } from "@/lib/types";
 import { STAGES, INACTIVE_STAGES, ALL_STAGES, getStageColor, getStageLabel, formatCurrency, daysSinceUpdate } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ interface BoardViewProps {
   onRefetch?: () => void;
 }
 
-const ALWAYS_SHOW = ['identified', 'engaged'];
+const ALWAYS_SHOW = ['identified', 'initial_review', 'engaged', 'due_diligence'];
 
 function stageColorVar(stageKey: string): string {
   const color = getStageColor(stageKey);
@@ -37,9 +37,16 @@ function DealCard({ deal, onClick, onEdit, onStageChange, onDelete }: {
   const stale = daysSinceUpdate(deal.updated_at);
   const [showDelete, setShowDelete] = useState(false);
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', deal.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
   return (
     <div
-      className={`group relative bg-card rounded-md p-2.5 cursor-pointer hover:border-primary/30 transition-colors border-l-[3px] ${
+      draggable
+      onDragStart={handleDragStart}
+      className={`group relative bg-card rounded-md p-2.5 cursor-grab active:cursor-grabbing hover:border-primary/30 transition-colors border-l-[3px] ${
         stale >= 14 ? 'border border-warning/30' : 'border border-border'
       }`}
       style={{ borderLeftColor: stageColorVar(deal.stage) }}
@@ -86,6 +93,9 @@ function DealCard({ deal, onClick, onEdit, onStageChange, onDelete }: {
           <div className="text-2xs text-muted-foreground mt-0.5">{deal.region}{deal.country ? `, ${deal.country}` : ''}</div>
         )}
         <div className="flex flex-wrap gap-1 mt-1.5">
+          {deal.property_type && (
+            <span className="text-2xs px-1.5 py-0.5 bg-primary/10 text-primary rounded">{deal.property_type.replace('_', ' ')}</span>
+          )}
           {deal.beds && (
             <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{deal.beds} beds</span>
           )}
@@ -95,9 +105,14 @@ function DealCard({ deal, onClick, onEdit, onStageChange, onDelete }: {
           {deal.tenure && (
             <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{deal.tenure}</span>
           )}
+          {deal.occupancy != null && (
+            <span className="text-2xs px-1.5 py-0.5 bg-secondary rounded">{deal.occupancy}% occ</span>
+          )}
         </div>
         {deal.next_step && (
-          <div className="text-2xs text-muted-foreground mt-1.5 truncate">→ {deal.next_step}</div>
+          <div className="text-2xs text-muted-foreground mt-1.5 truncate">
+            → {deal.next_step}{deal.next_step_owner ? ` (${deal.next_step_owner})` : ''}
+          </div>
         )}
         <div className="flex gap-2 mt-1.5">
           {stale >= 14 && (
@@ -130,6 +145,7 @@ function DealCard({ deal, onClick, onEdit, onStageChange, onDelete }: {
 
 export default function BoardView({ deals, search, onSelectDeal, onEditDeal, onNewDeal, onRefetch }: BoardViewProps) {
   const [showInactive, setShowInactive] = useState(false);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (!search) return deals;
@@ -160,14 +176,41 @@ export default function BoardView({ deals, search, onSelectDeal, onEditDeal, onN
     onRefetch?.();
   };
 
+  const handleDragOver = useCallback((e: React.DragEvent, stageKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverStage(stageKey);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverStage(null);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent, targetStage: string) => {
+    e.preventDefault();
+    setDragOverStage(null);
+    const dealId = e.dataTransfer.getData('text/plain');
+    if (!dealId) return;
+    const deal = deals.find(d => d.id === dealId);
+    if (!deal || deal.stage === targetStage) return;
+    await handleStageChange(dealId, targetStage);
+  }, [deals]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 overflow-x-auto p-3">
         <div className="flex gap-2 min-w-max h-full">
           {visibleStages.map(stage => {
             const stageDeals = activeDeals.filter(d => d.stage === stage.key);
+            const isDragOver = dragOverStage === stage.key;
             return (
-              <div key={stage.key} className="w-56 flex flex-col shrink-0">
+              <div
+                key={stage.key}
+                className={`w-64 flex flex-col shrink-0 rounded-lg transition-colors ${isDragOver ? 'bg-primary/5 ring-2 ring-primary/20' : ''}`}
+                onDragOver={e => handleDragOver(e, stage.key)}
+                onDragLeave={handleDragLeave}
+                onDrop={e => handleDrop(e, stage.key)}
+              >
                 <div className="flex items-center gap-2 px-2 py-1.5 mb-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stageColorVar(stage.key) }} />
                   <span className="text-xs font-medium text-foreground">{stage.label}</span>
@@ -175,7 +218,7 @@ export default function BoardView({ deals, search, onSelectDeal, onEditDeal, onN
                     {stageDeals.length}
                   </Badge>
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-1.5">
+                <div className="flex-1 overflow-y-auto space-y-1.5 px-1">
                   {stageDeals.map(deal => (
                     <DealCard
                       key={deal.id}
