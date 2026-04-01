@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { Deal } from "@/lib/types";
 import { formatCurrency } from "@/lib/constants";
-import { Search, Settings, Trash2, Plus } from "lucide-react";
+import { Search, Settings, Trash2, Plus, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
