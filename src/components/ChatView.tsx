@@ -314,7 +314,7 @@ export default function ChatView({
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-lg">
                 <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-                  Start talking. Dump notes, forward emails, ask "where do we stand." I'll parse everything into your deal pipeline.
+                  Start talking. Dump notes, paste updates, ask "where do we stand." I'll parse everything into your deal pipeline.
                 </p>
                 {activeDealsCount != null && activeDealsCount > 0 && (
                   <p className="text-xs text-muted-foreground/70 mb-5">
