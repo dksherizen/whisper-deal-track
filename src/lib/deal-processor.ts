@@ -149,6 +149,7 @@ export async function processParsedResult(
   if (result.deals) {
     for (const parsedDeal of result.deals) {
       try {
+        console.log(`[deal-processor] Processing deal "${parsedDeal.name}":`, { rawFields: parsedDeal.fields, action: parsedDeal.action });
         const existingDeal = matchDeal(parsedDeal, existingDeals);
 
         if (parsedDeal.action === 'kill') {
