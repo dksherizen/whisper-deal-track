@@ -83,6 +83,9 @@ RULES:
 - Stage inference: heard about it = identified. IM received = initial_review. In active talks = engaged. Solicitors starting = engaged (NOT legal_closing). Only use legal_closing when SPA is in motion.
 - NEVER include financial opinions, urgency commentary, or strategic advice.
 - Do NOT start the summary with "Got it" or any filler.
+- When parsing asking prices like '£2.8M' or '4.5m euros', convert to raw numbers: 2800000, 4500000. Always return numbers, never strings with currency symbols.
+
+CRITICAL: If the user mentions multiple deals in one message, you MUST return ALL of them in the deals array. Count every distinct deal/property/opportunity name before generating your response. Do not truncate or skip any. If there are 7 deals mentioned, there must be 7 objects in the deals array.
 
 RESPOND WITH ONLY THE JSON OBJECT. NO MARKDOWN. NO BACKTICKS. NO PREAMBLE.`;
 
