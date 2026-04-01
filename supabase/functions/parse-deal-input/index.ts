@@ -26,7 +26,7 @@ For ALL OTHER messages, return a JSON object with this exact structure:
       "fields": {
         "aliases": "",
         "type": "single" | "portfolio" | "platform" | "jv",
-        "country": "UK" | "US",
+        "country": "free text, e.g. UK, US, Spain, Germany, etc.",
         "region": "",
         "propertyType": "care_home" | "nursing_home" | "assisted_living" | "residential" | "mixed",
         "beds": null,
