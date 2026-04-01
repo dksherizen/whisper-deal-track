@@ -24,7 +24,6 @@ export default function Index() {
   const [search, setSearch] = useState("");
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [pendingChatInput, setPendingChatInput] = useState<string | null>(null);
-  const [creatingDeal, setCreatingDeal] = useState<string | null>(null); // null = not creating, string = default stage
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
 
   const creatingChatRef = useRef(false);
@@ -73,21 +72,10 @@ export default function Index() {
 
   const handleInsertTestDeal = async () => {
     if (!userId) return;
-
-    const payload = {
-      name: `TEST ${new Date().toLocaleTimeString()}`,
-      stage: 'identified',
-      user_id: userId,
-    };
-
+    const payload = { name: `TEST ${new Date().toLocaleTimeString()}`, stage: 'identified', user_id: userId };
     console.log('Attempting minimum test deal insert:', payload);
     const { data, error } = await supabase.from('deals').insert(payload).select().single();
-
-    if (error) {
-      console.error('Minimum test deal insert failed:', error);
-      return;
-    }
-
+    if (error) { console.error('Minimum test deal insert failed:', error); return; }
     console.log('Minimum test deal insert succeeded:', data);
     await refetchDeals();
   };
@@ -125,46 +113,18 @@ export default function Index() {
     }
   };
 
-  const handleNewDeal = (stage?: string) => {
-    setCreatingDeal(stage || 'identified');
+  const handleNewDeal = () => {
+    // Switch to chat and auto-send interview mode message
     setSelectedDeal(null);
     setEditingDeal(null);
+    setView('chat');
+    handleSend("[INTERVIEW MODE] The user wants to be interviewed about a new deal. Ask them ONE question at a time to build a complete deal record. Start with: What's the deal? Give me a name and location.");
   };
 
   const handleEditDeal = (deal: Deal) => {
     setEditingDeal(deal);
     setSelectedDeal(null);
-    setCreatingDeal(null);
   };
-
-  // Show new deal form
-  if (creatingDeal !== null) {
-    return (
-      <div className="h-screen flex flex-col bg-background">
-        <Header
-          deals={deals} view={view}
-          setView={(v) => { setView(v); setCreatingDeal(null); }}
-          search={search} setSearch={setSearch}
-          onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
-          onNewDeal={() => handleNewDeal()}
-          onInsertTestDeal={handleInsertTestDeal}
-        />
-        <div className="flex-1 overflow-hidden">
-          <DealDetail
-            isNew
-            defaultStage={creatingDeal}
-            userId={userId}
-            onBack={() => setCreatingDeal(null)}
-            onUpdate={refetchDeals}
-            onCreated={(deal) => {
-              setCreatingDeal(null);
-              setSelectedDeal(deal);
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
 
   // Show deal in edit mode
   if (editingDeal) {
@@ -175,7 +135,7 @@ export default function Index() {
           setView={(v) => { setView(v); setEditingDeal(null); }}
           search={search} setSearch={setSearch}
           onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
-          onNewDeal={() => handleNewDeal()}
+          onNewDeal={handleNewDeal}
           onInsertTestDeal={handleInsertTestDeal}
         />
         <div className="flex-1 overflow-hidden">
@@ -199,7 +159,7 @@ export default function Index() {
           setView={(v) => { setView(v); setSelectedDeal(null); }}
           search={search} setSearch={setSearch}
           onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
-          onNewDeal={() => handleNewDeal()}
+          onNewDeal={handleNewDeal}
           onInsertTestDeal={handleInsertTestDeal}
         />
         <div className="flex-1 overflow-hidden">
@@ -220,7 +180,7 @@ export default function Index() {
         deals={deals} view={view} setView={setView}
         search={search} setSearch={setSearch}
         onDeleteAllDeals={handleDeleteAllDeals} onSignOut={signOut}
-        onNewDeal={() => handleNewDeal()}
+        onNewDeal={handleNewDeal}
         onInsertTestDeal={handleInsertTestDeal}
       />
       <div className="flex-1 overflow-hidden">
@@ -248,7 +208,7 @@ export default function Index() {
           <ListView
             deals={deals} search={search}
             onSelectDeal={setSelectedDeal}
-            onNewDeal={() => handleNewDeal()}
+            onNewDeal={handleNewDeal}
           />
         )}
       </div>

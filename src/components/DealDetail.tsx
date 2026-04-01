@@ -16,13 +16,9 @@ import { ArrowLeft, Pencil, Trash2, Plus, Save, X, MessageSquare, CheckSquare, C
 
 interface DealDetailProps {
   deal?: Deal | null;
-  isNew?: boolean;
-  defaultStage?: string;
-  userId?: string | null;
   onBack: () => void;
   onUpdate: () => void;
   onChatAction?: (text: string) => void;
-  onCreated?: (deal: Deal) => void;
 }
 
 const MONEY_FIELDS = ['asking_price', 'revenue', 'ebitda', 'ebitdar'];
@@ -53,7 +49,7 @@ const FIELD_GROUPS = [
   {
     title: 'Financials',
     fields: [
-      { key: 'currency', label: 'Currency', type: 'select', options: ['GBP', 'USD'] },
+      { key: 'currency', label: 'Currency', type: 'select', options: ['GBP', 'USD', 'EUR'] },
       { key: 'asking_price', label: 'Asking Price', type: 'number' },
       { key: 'revenue', label: 'Revenue', type: 'number' },
       { key: 'ebitda', label: 'EBITDA', type: 'number' },
@@ -93,8 +89,8 @@ const FIELD_GROUPS = [
   },
 ];
 
-export default function DealDetail({ deal, isNew, defaultStage, userId, onBack, onUpdate, onChatAction, onCreated }: DealDetailProps) {
-  const [editing, setEditing] = useState(!!isNew);
+export default function DealDetail({ deal, onBack, onUpdate, onChatAction }: DealDetailProps) {
+  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, any>>({});
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [delegations, setDelegations] = useState<Delegation[]>([]);
@@ -103,16 +99,12 @@ export default function DealDetail({ deal, isNew, defaultStage, userId, onBack, 
   const [newDelTask, setNewDelTask] = useState("");
 
   useEffect(() => {
-    if (isNew) {
-      setForm({ stage: defaultStage || 'identified', currency: 'GBP' });
-      setTimeline([]);
-      setDelegations([]);
-    } else if (deal) {
+    if (deal) {
       setForm({ ...deal });
       loadTimeline();
       loadDelegations();
     }
-  }, [deal?.id, isNew]);
+  }, [deal?.id]);
 
   const loadTimeline = async () => {
     if (!deal) return;
@@ -135,23 +127,6 @@ export default function DealDetail({ deal, isNew, defaultStage, userId, onBack, 
   };
 
   const handleSave = async () => {
-    if (isNew) {
-      if (!form.name?.trim()) return;
-      const { id, created_at, updated_at, ...fields } = form;
-      const { data, error } = await supabase
-        .from('deals')
-        .insert({ ...fields, name: form.name.trim(), user_id: userId })
-        .select()
-        .single();
-      if (error) {
-        console.error('Failed to create deal:', error);
-        return;
-      }
-      onUpdate();
-      if (onCreated && data) onCreated(data as Deal);
-      else onBack();
-      return;
-    }
     if (!deal) return;
     const { id, created_at, updated_at, user_id, ...fields } = form;
     await supabase.from('deals').update(fields).eq('id', deal.id);
@@ -238,8 +213,6 @@ export default function DealDetail({ deal, isNew, defaultStage, userId, onBack, 
     );
   };
 
-  const displayName = isNew ? 'New Deal' : (deal?.name || '');
-
   return (
     <div className="h-full overflow-y-auto">
       {/* Header */}
@@ -247,7 +220,7 @@ export default function DealDetail({ deal, isNew, defaultStage, userId, onBack, 
         <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-lg font-bold flex-1">{displayName}</h2>
+        <h2 className="text-lg font-bold flex-1">{deal?.name || ''}</h2>
         <div className="flex items-center gap-1.5 mr-2">
           {editing ? (
             <Select value={form.stage || 'identified'} onValueChange={v => setForm({ ...form, stage: v })}>
@@ -266,12 +239,8 @@ export default function DealDetail({ deal, isNew, defaultStage, userId, onBack, 
         </div>
         {editing ? (
           <>
-            <Button size="sm" onClick={handleSave} className="h-7 text-xs gap-1"><Save className="h-3 w-3" />{isNew ? 'Create' : 'Save'}</Button>
-            {isNew ? (
-              <Button variant="ghost" size="sm" onClick={onBack} className="h-7 text-xs gap-1"><X className="h-3 w-3" />Cancel</Button>
-            ) : (
-              <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setForm({ ...deal }); }} className="h-7 text-xs gap-1"><X className="h-3 w-3" />Cancel</Button>
-            )}
+            <Button size="sm" onClick={handleSave} className="h-7 text-xs gap-1"><Save className="h-3 w-3" />Save</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setForm({ ...deal }); }} className="h-7 text-xs gap-1"><X className="h-3 w-3" />Cancel</Button>
           </>
         ) : (
           <>
@@ -298,7 +267,7 @@ export default function DealDetail({ deal, isNew, defaultStage, userId, onBack, 
       </div>
 
       {/* Deal-specific quick actions */}
-      {onChatAction && !editing && !isNew && (
+      {onChatAction && !editing && (
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card/50">
           <Button
             variant="outline" size="sm" className="h-6 text-[11px] gap-1"
@@ -351,75 +320,67 @@ export default function DealDetail({ deal, isNew, defaultStage, userId, onBack, 
         {/* Right — delegations & timeline (30%) */}
         <div className="w-[30%] shrink-0 p-4 space-y-5 overflow-y-auto">
           {/* Delegations */}
-          {!isNew && (
-            <div>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Delegations</h3>
-              <div className="space-y-2">
-                {delegations.length === 0 && (
-                  <p className="text-2xs text-muted-foreground">No delegations yet.</p>
-                )}
-                {delegations.map(d => (
-                  <div key={d.id} className="flex items-start gap-2 text-sm">
-                    <Checkbox
-                      checked={d.done}
-                      onCheckedChange={() => toggleDelegation(d.id, d.done)}
-                      className="mt-0.5"
-                    />
-                    <div className={d.done ? 'line-through text-muted-foreground' : 'text-foreground'}>
-                      <span className="font-medium">{d.assignee}:</span> {d.task}
-                      <div className="text-2xs text-muted-foreground">{d.date}</div>
-                    </div>
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Delegations</h3>
+            <div className="space-y-2">
+              {delegations.length === 0 && (
+                <p className="text-2xs text-muted-foreground">No delegations yet.</p>
+              )}
+              {delegations.map(d => (
+                <div key={d.id} className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    checked={d.done}
+                    onCheckedChange={() => toggleDelegation(d.id, d.done)}
+                    className="mt-0.5"
+                  />
+                  <div className={d.done ? 'line-through text-muted-foreground' : 'text-foreground'}>
+                    <span className="font-medium">{d.assignee}:</span> {d.task}
+                    <div className="text-2xs text-muted-foreground">{d.date}</div>
                   </div>
-                ))}
-              </div>
-              <div className="mt-2 space-y-1">
-                <div className="flex gap-1">
-                  <Input value={newDelAssignee} onChange={e => setNewDelAssignee(e.target.value)} placeholder="Who" className="h-6 text-xs bg-secondary border-border" />
-                  <Input value={newDelTask} onChange={e => setNewDelTask(e.target.value)} placeholder="Task" className="h-6 text-xs bg-secondary border-border flex-1" />
-                  <Button size="icon" variant="ghost" onClick={addDelegation} className="h-6 w-6"><Plus className="h-3 w-3" /></Button>
                 </div>
+              ))}
+            </div>
+            <div className="mt-2 space-y-1">
+              <div className="flex gap-1">
+                <Input value={newDelAssignee} onChange={e => setNewDelAssignee(e.target.value)} placeholder="Who" className="h-6 text-xs bg-secondary border-border" />
+                <Input value={newDelTask} onChange={e => setNewDelTask(e.target.value)} placeholder="Task" className="h-6 text-xs bg-secondary border-border flex-1" />
+                <Button size="icon" variant="ghost" onClick={addDelegation} className="h-6 w-6"><Plus className="h-3 w-3" /></Button>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Timeline */}
-          {!isNew && (
-            <div id="timeline-section">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Timeline</h3>
-              <div className="space-y-2.5">
-                {timeline.length === 0 && (
-                  <p className="text-2xs text-muted-foreground">No timeline entries yet.</p>
-                )}
-                {timeline.map(t => (
-                  <div key={t.id} className="flex gap-2 text-sm">
-                    <span className="text-2xs text-muted-foreground whitespace-nowrap pt-0.5">{t.date}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm">{t.text}</span>
-                        {t.source === 'ai' && (
-                          <Badge variant="secondary" className="text-[9px] h-3.5 px-1 shrink-0">ai</Badge>
-                        )}
-                      </div>
+          <div id="timeline-section">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Timeline</h3>
+            <div className="space-y-2.5">
+              {timeline.length === 0 && (
+                <p className="text-2xs text-muted-foreground">No timeline entries yet.</p>
+              )}
+              {timeline.map(t => (
+                <div key={t.id} className="flex gap-2 text-sm">
+                  <span className="text-2xs text-muted-foreground whitespace-nowrap pt-0.5">{t.date}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">{t.text}</span>
+                      {t.source === 'ai' && (
+                        <Badge variant="secondary" className="text-[9px] h-3.5 px-1 shrink-0">ai</Badge>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="mt-2 flex gap-1">
-                <Input
-                  value={newTimelineText}
-                  onChange={e => setNewTimelineText(e.target.value)}
-                  placeholder="Add timeline entry..."
-                  className="h-6 text-xs bg-secondary border-border"
-                  onKeyDown={e => e.key === 'Enter' && addTimeline()}
-                />
-                <Button size="icon" variant="ghost" onClick={addTimeline} className="h-6 w-6"><Plus className="h-3 w-3" /></Button>
-              </div>
+                </div>
+              ))}
             </div>
-          )}
-
-          {isNew && (
-            <p className="text-xs text-muted-foreground">Save the deal first to add timeline entries and delegations.</p>
-          )}
+            <div className="mt-2 flex gap-1">
+              <Input
+                value={newTimelineText}
+                onChange={e => setNewTimelineText(e.target.value)}
+                placeholder="Add timeline entry..."
+                className="h-6 text-xs bg-secondary border-border"
+                onKeyDown={e => e.key === 'Enter' && addTimeline()}
+              />
+              <Button size="icon" variant="ghost" onClick={addTimeline} className="h-6 w-6"><Plus className="h-3 w-3" /></Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
