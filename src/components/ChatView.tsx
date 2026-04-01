@@ -403,7 +403,7 @@ export default function ChatView({
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder="Type a brain dump, forward an email, or ask about your pipeline..."
+              placeholder="Type a brain dump, paste updates, or ask about your pipeline..."
               rows={1}
               className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-ring"
             />
