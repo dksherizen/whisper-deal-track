@@ -129,7 +129,7 @@ export default function DealDetail({ deal, onBack, onUpdate, onChatAction }: Dea
   const handleSave = async () => {
     if (!deal) return;
     const { id, created_at, updated_at, user_id, ...fields } = form;
-    await supabase.from('deals').update(fields).eq('id', deal.id);
+    await supabase.from('deals').update(fields as any).eq('id', deal.id);
     setEditing(false);
     onUpdate();
   };
