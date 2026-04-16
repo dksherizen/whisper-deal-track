@@ -179,7 +179,7 @@ export async function processParsedResult(
             ? { ...fields, updated_at: new Date().toISOString() }
             : { updated_at: new Date().toISOString() }, parsedDeal.name);
           console.log(`[deal-processor] "${parsedDeal.name}" sanitized update payload:`, updatePayload);
-          const { error } = await supabase.from('deals').update(updatePayload).eq('id', existingDeal.id);
+          const { error } = await supabase.from('deals').update(updatePayload as any).eq('id', existingDeal.id);
           if (error) {
             console.error(`Failed to update deal ${parsedDeal.name}:`, error);
             actions.push(`${parsedDeal.name} — failed to update`);
